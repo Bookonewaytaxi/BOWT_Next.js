@@ -55,7 +55,7 @@ export default function Header() {
               variant="default" 
               size="sm" 
               className="bg-gold-gradient text-slate-900 font-bold hover:shadow-lg hover:shadow-amber-500/20 bg-[#FFD700] hover:bg-[#E5C100] border-none"
-              onClick={() => router.push('/booking')}
+              onClick={() => router.push('/')}
             >
               BOOK NOW
             </Button>
@@ -100,7 +100,7 @@ export default function Header() {
               <Button 
                 className="w-full bg-[#FFD700] text-[#0F1419] font-bold mt-4 hover:bg-[#E5C100]"
                 onClick={() => {
-                  router.push('/booking');
+                  router.push('/');
                   setIsMenuOpen(false);
                 }}
               >
