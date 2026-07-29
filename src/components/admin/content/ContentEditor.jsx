@@ -1,7 +1,9 @@
 import React, { useRef, useMemo } from 'react';
-import ReactQuill from 'react-quill';
+import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 import { Card } from '@/components/ui/card';
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
 export default function ContentEditor({ value, onChange, placeholder }) {
   const quillRef = useRef(null);
