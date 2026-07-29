@@ -25,7 +25,7 @@ export default function SoftCTA() {
            
            <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Button 
-                onClick={() => window.location.href='/booking'}
+                onClick={() => window.location.href='/'}
                 className="bg-[#FFD700] text-[#0F1419] hover:bg-[#E5C100] font-bold text-xl h-14 px-10 rounded-full shadow-lg hover:scale-105 transition-transform"
               >
                 Book Now
