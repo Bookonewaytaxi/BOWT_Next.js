@@ -37,7 +37,7 @@ export default function FleetCard({ image, name, tagline, features, delay = 0 })
         </div>
 
         <Button 
-          onClick={() => window.location.href='/booking'}
+          onClick={() => window.location.href='/'}
           className="w-full mt-auto bg-[#FFD700] hover:bg-[#E5C100] text-[#0F1419] font-bold"
         >
           Book Now
