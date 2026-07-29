@@ -1,6 +1,5 @@
 import React from 'react';
-import { Car, Users, CheckCircle, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Car, Users, CheckCircle } from 'lucide-react';
 
 export default function VehiclePriceTable({ route }) {
   if (!route) {
@@ -53,12 +52,6 @@ export default function VehiclePriceTable({ route }) {
     }
   ];
 
-  const handleBookNow = (vehicle) => {
-    const priceText = vehicle.price ? `₹${vehicle.price}` : 'Best Price';
-    const text = `Hi, I want to book a ${vehicle.type} from ${route.from_city} to ${route.to_city}. Price: ${priceText}`;
-    window.open(`https://wa.me/917567575578?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
   return (
     <div className="vehicle-price-table-section my-8">
       <h2 className="text-2xl font-bold mb-6 text-slate-900">Vehicle Options & Pricing</h2>
@@ -67,11 +60,10 @@ export default function VehiclePriceTable({ route }) {
           <table className="vehicle-table w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr>
-                <th className="w-[30%]">Vehicle Type</th>
-                <th className="w-[20%]">Capacity</th>
+                <th className="w-[35%]">Vehicle Type</th>
+                <th className="w-[25%]">Capacity</th>
                 <th className="w-[20%] hidden sm:table-cell">Models</th>
-                <th className="w-[15%]">Price</th>
-                <th className="w-[15%]"></th>
+                <th className="w-[20%]">Price</th>
               </tr>
             </thead>
             <tbody>
@@ -104,14 +96,6 @@ export default function VehiclePriceTable({ route }) {
                     ) : (
                       <span className="text-sm font-medium text-slate-400 italic">On Request</span>
                     )}
-                  </td>
-                  <td className="text-right pr-4">
-                    <Button 
-                      onClick={() => handleBookNow(vehicle)}
-                      className="bg-white hover:bg-[#667eea] text-[#667eea] hover:text-white border border-[#667eea] h-9 text-xs sm:text-sm px-4 whitespace-nowrap transition-all shadow-sm hover:shadow-md"
-                    >
-                      Select <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
                   </td>
                 </tr>
               ))}
