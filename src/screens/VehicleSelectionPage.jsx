@@ -53,6 +53,30 @@ export default function VehicleSelectionPage() {
     pickup_time: pickup_time || pickupTime
   };
 
+  // Date & time are editable here so a customer arriving from a route page
+  // (which pre-fills today's date/time) can still plan a future trip.
+  const [editedDate, setEditedDate] = useState('');
+  const [editedTime, setEditedTime] = useState('');
+
+  useEffect(() => {
+    if (!incoming) return;
+    setEditedDate(routeData.pickup_date || '');
+    setEditedTime(routeData.pickup_time || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
+
+  const handleDateChange = (e) => {
+    const value = e.target.value;
+    setEditedDate(value);
+    setBookingState({ pickup_date: value });
+  };
+
+  const handleTimeChange = (e) => {
+    const value = e.target.value;
+    setEditedTime(value);
+    setBookingState({ pickup_time: value });
+  };
+
   // Inquiry Capture Hook
   useInquiryCapture({
     pickup_city: routeData.from_city,
@@ -167,10 +191,23 @@ export default function VehicleSelectionPage() {
                 </div>
                 <div className="flex gap-4 text-sm text-slate-400">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> {routeData.pickup_date}
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <input
+                      type="date"
+                      value={editedDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={handleDateChange}
+                      className="bg-transparent text-slate-200 text-sm outline-none [color-scheme:dark] cursor-pointer"
+                    />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> {routeData.pickup_time}
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <input
+                      type="time"
+                      value={editedTime}
+                      onChange={handleTimeChange}
+                      className="bg-transparent text-slate-200 text-sm outline-none [color-scheme:dark] cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>
