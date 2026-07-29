@@ -1,0 +1,19 @@
+## Pages
+- [About One-Way Taxi | Trusted Taxi Service in India](/about): Learn about One-Way Taxi - India
+- [Admin Dashboard | One Way Taxi](/admindashboard): No description available
+- [All Taxi Routes | One Way Taxi](/routeslisting): Explore all our available one-way taxi routes with fixed pricing.
+- [Booking Confirmed - One Way Taxi](/confirmation): Your taxi booking has been confirmed successfully with One Way Taxi
+- [Complete Booking | One Way Taxi](/customerdetails): Final step to confirm your taxi booking.
+- [Contact One-Way Taxi | Get Instant Quote on WhatsApp](/contact): Contact One-Way Taxi for instant one-way taxi quotes. Share your route details and get fare on WhatsApp. 24/7 support. Safe, reliable, and affordable.
+- [Customer Details | One Way Taxi](/bookingform): No description available
+- [One Way Taxi - Premium City-to-City Cab Service](/home): Book verified premium one-way taxis for intercity travel. No return fare. Instant WhatsApp confirmation. 24/7 verified driver support.
+- [One-Way Taxi Routes | Book Affordable Taxis](/routeslanding): Explore all one-way taxi routes. Select your pickup city and find affordable taxis to your destination. Best rates guaranteed.
+- [One-Way Taxi Service | Affordable Rates | Book Now](/services): Book affordable one-way taxi service. Save up to 40% vs round-trip. Fixed pricing, 24/7 support, sanitized vehicles. Reliable outstation cabs.
+- [Page Not Found | One Way Taxi](/notfound): The page you are looking for does not exist on One Way Taxi.
+- [Popular Taxi Routes | One Way Taxi](/routes): Explore our popular one-way taxi routes across India. Affordable rates for Ahmedabad, Surat, Mumbai, Vadodara, Pune, and more. Book now!
+- [Routes from  | One-Way Taxi Service](/cityroutes): No description available
+- [Select Route | One Way Taxi](/routeandpriceselection): Confirm your route for the journey.
+- [Select Vehicle | One Way Taxi](/vehicleselection): Choose your preferred taxi for your one-way trip.
+- [Select Vehicle Price | One Way Taxi](/pricepageroute): View prices and choose your taxi for the trip.
+- [Untitled Page](/routedetails): No description available
+- [Untitled Page](/route): No description available
