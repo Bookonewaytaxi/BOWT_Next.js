@@ -65,14 +65,14 @@ export default function ServicesHero() {
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Button 
-              onClick={() => window.location.href='/booking'}
+              onClick={() => window.location.href='/'}
               className="w-full sm:w-auto bg-[#FFD700] text-[#0F1419] hover:bg-[#E5C100] font-bold text-lg h-14 px-8 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] transition-all transform hover:-translate-y-1"
             >
               Book Now
             </Button>
             <Button 
               variant="outline"
-              onClick={() => window.location.href='/booking'}
+              onClick={() => window.location.href='/'}
               className="w-full sm:w-auto border-[#FFD700] text-[#FFD700] hover:bg-[#FFD700]/10 bg-transparent font-bold text-lg h-14 px-8 rounded-full transition-all"
             >
               Get Instant Quote
