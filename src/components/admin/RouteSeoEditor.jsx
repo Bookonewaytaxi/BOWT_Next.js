@@ -9,7 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSeoManagement } from '@/hooks/useSeoManagement';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
-import ReactQuill from 'react-quill';
+import dynamic from 'next/dynamic';
+import 'react-quill/dist/quill.snow.css';
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 import 'react-quill/dist/quill.snow.css';
 
 export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel }) {
