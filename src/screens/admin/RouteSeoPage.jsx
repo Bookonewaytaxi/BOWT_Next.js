@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function RouteSeoPage() {
   const router = useRouter();
-  const { routeId } = router.query;
+  const { id: routeId } = router.query;
   
   const { getSeoData, saveSeoData } = useSeoManagement();
   const [loading, setLoading] = useState(true);
