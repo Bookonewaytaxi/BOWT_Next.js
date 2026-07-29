@@ -6,7 +6,7 @@ export const VEHICLE_TYPES_CONSTANTS = [
     description: 'Perfect for small families and budget travelers.',
     capacity: 4,
     // price_per_km removed, now uses fixed price mapping
-    image_url: 'https://horizons-cdn.hostinger.com/7a33da7a-1297-48e9-b4e2-a37c6dd7b55b/4d79e5735e2daf1885159bbbab0e75ec.jpg'
+    image_url: '/images/vehicles/sedan-dzire.jpg'
   },
   {
     id: 'suv6',
@@ -14,7 +14,7 @@ export const VEHICLE_TYPES_CONSTANTS = [
     name: 'SUV (Ertiga)',
     description: 'Spacious & comfortable for groups.',
     capacity: 6,
-    image_url: 'https://horizons-cdn.hostinger.com/7a33da7a-1297-48e9-b4e2-a37c6dd7b55b/67e8008f554c92e1f6a80fc91b1bb353.jpg' // Updated URL
+    image_url: '/images/vehicles/suv6-ertiga.jpg'
   },
   {
     id: 'suv7',
@@ -22,7 +22,7 @@ export const VEHICLE_TYPES_CONSTANTS = [
     name: 'SUV (Kia Carens)',
     description: 'Premium comfort for larger families.',
     capacity: 7,
-    image_url: 'https://horizons-cdn.hostinger.com/7a33da7a-1297-48e9-b4e2-a37c6dd7b55b/6b1a102d9a94bfc7438829da5f844409.jpg' // Updated URL
+    image_url: '/images/vehicles/suv7-kia-carens.jpg'
   },
   {
     id: 'crysta',
@@ -30,7 +30,7 @@ export const VEHICLE_TYPES_CONSTANTS = [
     name: 'Innova Crysta',
     description: 'The ultimate luxury travel experience.',
     capacity: 7,
-    image_url: 'https://horizons-cdn.hostinger.com/7a33da7a-1297-48e9-b4e2-a37c6dd7b55b/dcad7d25ec086a77407d428211f5f92e.jpg' // Updated URL
+    image_url: '/images/vehicles/crysta-innova.jpg'
   }
 ];
 
