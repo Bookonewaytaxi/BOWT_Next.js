@@ -28,7 +28,7 @@ export default function EditRoutePage() {
       setLoading(false);
     };
     loadData();
-  }, [id, fetchRouteById, navigate]);
+  }, [id, fetchRouteById]);
 
   return (
     <>
