@@ -142,7 +142,7 @@ export default function VehicleSelectionPage() {
       vehicle_fare: selectedVehicle.price,
       vehicle_type: selectedVehicle.type_key
     });
-    router.push('/booking/customer-details');
+    router.replace('/booking/customer-details');
   };
 
   // Construct vehicle list with specific prices
