@@ -57,7 +57,7 @@ export default function VehiclePriceTable({ route }) {
       <h2 className="text-2xl font-bold mb-6 text-slate-900">Vehicle Options & Pricing</h2>
       <div className="table-wrapper bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="vehicle-table w-full text-left border-collapse min-w-[600px]">
+          <table className="vehicle-table w-full text-left border-collapse sm:min-w-[600px]">
             <thead>
               <tr>
                 <th className="w-[35%]">Vehicle Type</th>
