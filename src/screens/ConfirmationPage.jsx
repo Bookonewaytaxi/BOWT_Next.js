@@ -22,9 +22,21 @@ export default function ConfirmationPage() {
     window.location.href = 'tel:+917567575578';
   };
 
-  const handleWhatsApp = () => {
-    const message = booking 
-      ? `Hi, I just made a booking. My reference number is ${booking.booking_ref_id || booking.id}`
+ const handleWhatsApp = () => {
+    const message = booking
+      ? [
+          `Hi, I just made a booking on One Way Taxi.`,
+          `Booking ID: ${booking.booking_ref_id || booking.id?.slice(0, 8)}`,
+          `Name: ${booking.name}`,
+          `Mobile: ${booking.mobile_number}`,
+          `Route: ${booking.from_city} to ${booking.to_city}`,
+          `Pickup Date: ${new Date(booking.pickup_date).toLocaleDateString()}`,
+          booking.pickup_time ? `Pickup Time: ${booking.pickup_time}` : null,
+          `Car Type: ${booking.car_type}`,
+          booking.pickup_location && booking.pickup_location !== 'Pending' ? `Pickup Location: ${booking.pickup_location}` : null,
+          booking.drop_location && booking.drop_location !== 'Pending' ? `Drop Location: ${booking.drop_location}` : null,
+          `Total Amount: ₹${booking.total_amount}`
+        ].filter(Boolean).join('\n')
       : `Hi, I need help with a taxi booking.`;
     window.open(`https://wa.me/917567575578?text=${encodeURIComponent(message)}`, '_blank');
   };
