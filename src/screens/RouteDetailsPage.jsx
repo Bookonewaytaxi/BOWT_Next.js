@@ -104,7 +104,7 @@ export default function RouteDetailsPage() {
       vehicle_fare: startingPrice,
       selected_vehicle: null // Let user select vehicle later or auto-select default
     });
-    router.push('/booking/customer-details');
+    router.replace('/booking/customer-details');
   };
 
   // --- Loading State ---
