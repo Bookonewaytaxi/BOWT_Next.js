@@ -141,7 +141,7 @@ export default function CustomerDetailsPage() {
       }
 
       setBookingState({ booking });
-      router.push('/booking/confirm');
+      router.replace('/booking/confirm');
 
       toast({
         title: "Booking Successful!",
