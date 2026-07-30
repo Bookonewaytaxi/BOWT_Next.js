@@ -91,7 +91,7 @@ export default function BookingForm({ prefilledPrice = null }) {
         mobileNumber: formData.customer_mobile,
         fixedPrice: prefilledPrice // Pass prefilled price if available
       });
-      router.push('/booking/price');
+      router.replace('/booking/price');
 
     } catch (error) {
       console.error("Navigation Error:", error);
