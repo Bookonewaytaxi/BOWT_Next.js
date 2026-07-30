@@ -50,7 +50,7 @@ export function useBookingFilters() {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase.from('bookings').select('*').order('pickup_date', { ascending: false });
+      let query = supabase.from('bookings').select('*').order('created_at', { ascending: false });
 
       // 1. Search (Server-side ILIKE)
       if (debouncedSearch) {
