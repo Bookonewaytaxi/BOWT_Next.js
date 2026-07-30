@@ -53,8 +53,8 @@ export default function HomePage() {
         </script>
       </Head>
 
-      <div className="min-h-screen bg-slate-950 font-sans flex flex-col text-slate-100 overflow-x-hidden">
-        <Header />
+      <div className="min-h-screen bg-slate-950 font-sans flex flex-col text-slate-100">
+  <Header />
 
         {/* Hero Section */}
         <section className="relative min-h-screen pt-24 pb-16 px-4 flex items-center justify-center overflow-hidden">
