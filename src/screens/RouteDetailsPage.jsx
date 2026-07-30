@@ -190,7 +190,7 @@ export default function RouteDetailsPage() {
       <div className="min-h-screen bg-slate-50 font-sans route-page">
         <Header />
 
-        <div className="container mx-auto px-4 pt-24 pb-12 min-w-0">
+        <div className="container mx-auto px-4 pt-24 pb-12">
           {/* Breadcrumb */}
           <Breadcrumb items={breadcrumbItems} className="mb-6" />
 
@@ -256,7 +256,7 @@ export default function RouteDetailsPage() {
             </div>
 
             {/* Sidebar Column */}
-            <div className="lg:col-span-4 space-y-6">
+            <div className="lg:col-span-4 space-y-6 min-w-0">
               <div className="sticky top-24 space-y-6">
                 
                 {/* Booking Widget */}
