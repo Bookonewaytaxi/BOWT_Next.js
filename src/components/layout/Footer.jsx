@@ -44,17 +44,14 @@ export default function Footer() {
                 <MapPin className="h-5 w-5 text-amber-500 flex-shrink-0 mt-1" />
                 <span className="font-medium text-sm">
                   Shop no 2, One Way Taxi,
-                  <br />khodiyar nagar socity opp avsar party plote service road sardar nagar behind
+                  <br />khodiyar nagar socity, Opp. Avasar Party Plote Service Road, Hansol, Sardarnagar, Ahmedabad.
                 </span>
               </div>
               <a href="tel:+917567575578" className="flex items-center gap-3 text-slate-400 hover:text-amber-400 transition-colors">
                  <Phone className="h-5 w-5 text-amber-500" />
                 <span className="font-medium text-sm">+91 75675 75578</span>
               </a>
-              <a href="tel:+917567575579" className="flex items-center gap-3 text-slate-400 hover:text-amber-400 transition-colors">
-                 <Phone className="h-5 w-5 text-amber-500" />
-                <span className="font-medium text-sm">+91 75675 75579</span>
-              </a>
+              
               <a href="mailto:contact@bookonewaytaxi.com" className="flex items-center gap-3 text-slate-400 hover:text-amber-400 transition-colors">
                  <Mail className="h-5 w-5 text-amber-500" />
                 <span className="font-medium text-sm break-all">contact@bookonewaytaxi.com</span>
