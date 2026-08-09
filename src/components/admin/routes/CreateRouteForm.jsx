@@ -18,6 +18,7 @@ import {
   generateMetaDescription, 
   generateKeywords
 } from '@/utils/seoGeneratorService';
+import { triggerAutoRegenerateIfEnabled } from '@/utils/sitemapUtils';
 
 export default function CreateRouteForm() {
   const router = useRouter();
@@ -195,6 +196,9 @@ export default function CreateRouteForm() {
       });
 
       if (error) throw error;
+
+      // Non-blocking — never delays the success toast/redirect below.
+      triggerAutoRegenerateIfEnabled('route_created');
 
       toast({
         title: "Success",

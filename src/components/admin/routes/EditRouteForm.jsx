@@ -23,6 +23,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SEOPreview from '../seo/SEOPreview';
 import SEOKeywordEditor from '../seo/SEOKeywordEditor';
 import ContentGenerator from '../content/ContentGenerator';
+import { triggerAutoRegenerateIfEnabled } from '@/utils/sitemapUtils';
 import { 
   generateSEOTitle, 
   generateMetaDescription, 
@@ -207,9 +208,9 @@ export default function EditRouteForm({ routeId, initialData }) {
 
       if (error) throw error;
 
+      triggerAutoRegenerateIfEnabled('route_updated');
+
       toast({
-        title: "Success",
-        description: "Route updated successfully",
         className: "bg-green-600 text-white"
       });
       router.push('/admin/routes');
