@@ -37,6 +37,8 @@ import {
   generateKeywords,
   generateSEOContent
 } from '@/utils/seoGeneratorService';
+import { loadActiveSeoConfig } from '@/lib/seo/metaTemplates';
+import { triggerAutoRegenerateIfEnabled } from '@/utils/sitemapUtils';
 
 export default function RouteManagement() {
   const router = useRouter();
@@ -93,6 +95,7 @@ export default function RouteManagement() {
     const { success, error } = await deleteRoute(deleteId);
     if (success) {
       setRoutes(prev => prev.filter(r => r.id !== deleteId));
+      triggerAutoRegenerateIfEnabled('route_deleted');
       toast({ title: "Route deleted successfully", className: "bg-green-600 text-white" });
     } else {
       toast({ variant: "destructive", title: "Delete Failed", description: error?.message });
@@ -110,6 +113,7 @@ export default function RouteManagement() {
       setIsReportOpen(true);
       if (report.createdCount > 0 || report.updatedCount > 0) {
         loadRoutes();
+        triggerAutoRegenerateIfEnabled('bulk_import');
       }
     } catch (error) {
       console.error("Import error", error);
@@ -137,15 +141,21 @@ export default function RouteManagement() {
 
       toast({ title: "Auto-Filling SEO", description: `Generating SEO for ${routesToUpdate.length} routes...` });
 
+      // Loaded once for the whole batch, not per-route — a single small
+      // query, not N queries. Returns {} if no templates are configured
+      // yet, in which case every generate call below falls back to its
+      // original hardcoded behavior, unchanged.
+      const seoConfig = await loadActiveSeoConfig();
+
       // 2. Process updates
       for (const route of routesToUpdate) {
         const updates = {};
         const price = route.sedan_price || route.route_price || 0;
         
-        if (!route.seo_title) updates.seo_title = generateSEOTitle(route.from_city, route.to_city, price);
-        if (!route.seo_description) updates.seo_description = generateMetaDescription(route.from_city, route.to_city);
-        if (!route.seo_keywords || route.seo_keywords.length === 0) updates.seo_keywords = generateKeywords(route.from_city, route.to_city, price);
-        if (!route.seo_content) updates.seo_content = generateSEOContent(route.from_city, route.to_city, route.distance_km || '0', price);
+        if (!route.seo_title) updates.seo_title = generateSEOTitle(route.from_city, route.to_city, price, seoConfig.meta_title);
+        if (!route.seo_description) updates.seo_description = generateMetaDescription(route.from_city, route.to_city, seoConfig.meta_description);
+        if (!route.seo_keywords || route.seo_keywords.length === 0) updates.seo_keywords = generateKeywords(route.from_city, route.to_city, price, seoConfig.keywords);
+        if (!route.seo_content) updates.seo_content = generateSEOContent(route.from_city, route.to_city, route.distance_km || '0', price, seoConfig.seo_content);
 
         if (Object.keys(updates).length > 0) {
           updates.updated_at = new Date().toISOString();
@@ -156,6 +166,7 @@ export default function RouteManagement() {
       }
 
       toast({ title: "SEO Update Complete", description: `Updated SEO for ${updatedCount} routes.`, className: "bg-green-600 text-white" });
+      if (updatedCount > 0) triggerAutoRegenerateIfEnabled('bulk_seo_update');
       loadRoutes();
     } catch (error) {
       console.error("SEO Autofill Error", error);
