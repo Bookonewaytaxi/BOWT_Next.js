@@ -14,31 +14,19 @@ import TestimonialsSection from '@/components/home/TestimonialsSection';
 import CorporateSection from '@/components/home/CorporateSection';
 import FAQSection from '@/components/home/FAQSection';
 import FloatingWhatsAppButton from '@/components/home/FloatingWhatsAppButton';
-
-const localBusinessSchema = {
-  "@context": "https://schema.org",
-  "@type": "TaxiService",
-  "name": "One Way Taxi",
-  "image": "https://bookonewaytaxi.in/logo.jpg",
-  "url": "https://bookonewaytaxi.in",
-  "telephone": "+91-7567575578",
-  "priceRange": "₹₹",
-  "foundingDate": "2016",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Shop No 2, Book One Way Taxi, Opp Avsar Party Plot, Service Road, Behind Hansol Gam, Hansol",
-    "addressLocality": "Sardarnagar, Ahmedabad",
-    "addressRegion": "Gujarat",
-    "addressCountry": "IN"
-  },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "reviewCount": "150"
-  }
-};
+import { buildOrganizationSchema } from '@/lib/schema/organizationSchema';
+import { buildWebsiteSchema } from '@/lib/schema/websiteSchema';
+import { stripContext } from '@/lib/schema/schemaUtils';
 
 export default function HomePage() {
+  // Single source of truth (src/lib/schema/organizationSchema.js +
+  // websiteSchema.js) — same modules Route pages use. No business data
+  // is duplicated here.
+  const homeSchemaGraph = {
+    '@context': 'https://schema.org',
+    '@graph': [buildOrganizationSchema(), buildWebsiteSchema()].filter(Boolean).map(stripContext),
+  };
+
   return (
     <>
       <Head>
@@ -48,13 +36,14 @@ export default function HomePage() {
         <meta property="og:description" content="No return fare. Fixed transparent pricing. Verified drivers. Instant WhatsApp confirmation. 800+ routes across Gujarat." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://bookonewaytaxi.in" />
-        <script type="application/ld+json">
-          {JSON.stringify(localBusinessSchema)}
-        </script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(homeSchemaGraph) }}
+        />
       </Head>
 
-      <div className="min-h-screen bg-slate-950 font-sans flex flex-col text-slate-100">
-  <Header />
+      <div className="min-h-screen bg-slate-950 font-sans flex flex-col text-slate-100 overflow-x-hidden">
+        <Header />
 
         {/* Hero Section */}
         <section className="relative min-h-screen pt-24 pb-16 px-4 flex items-center justify-center overflow-hidden">
