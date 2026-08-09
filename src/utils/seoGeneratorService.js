@@ -1,18 +1,48 @@
-export const generateSEOTitle = (fromCity, toCity, startingPrice) => {
+import { renderTemplate } from '@/lib/seo/metaTemplates';
+
+/**
+ * Every function below now accepts an optional trailing `config` argument
+ * (a row from seo_config, or undefined). When provided and it has real
+ * template content, the config-driven path renders from it. When absent
+ * (the default — every existing call site that doesn't pass it), the
+ * function behaves EXACTLY as before this change, byte-for-byte.
+ */
+
+export const generateSEOTitle = (fromCity, toCity, startingPrice, config = null) => {
+  const maxLen = config?.max_length || 60;
+
+  if (config?.template_value) {
+    const rendered = renderTemplate(config.template_value, {
+      from_city: fromCity,
+      to_city: toCity,
+      price: startingPrice,
+    });
+    return rendered.length > maxLen ? rendered.substring(0, maxLen - 3) + '...' : rendered;
+  }
+
   const price = startingPrice ? ` @ ₹${startingPrice}` : '';
   const title = `${fromCity} to ${toCity} Taxi | One Way Cab${price}`;
-  // Ensure max 60 chars
   return title.length > 60 ? title.substring(0, 57) + '...' : title;
 };
 
-export const generateMetaDescription = (fromCity, toCity) => {
+export const generateMetaDescription = (fromCity, toCity, config = null) => {
+  if (config?.template_value) {
+    return renderTemplate(config.template_value, { from_city: fromCity, to_city: toCity });
+  }
   return `Book ${fromCity} to ${toCity} one way taxi with fixed pricing, no hidden charges, professional drivers and 24/7 support.`;
 };
 
-export const generateKeywords = (fromCity, toCity, startingPrice) => {
+export const generateKeywords = (fromCity, toCity, startingPrice, config = null) => {
   const from = fromCity.toLowerCase().trim();
   const to = toCity.toLowerCase().trim();
-  
+
+  if (config?.template_list && Array.isArray(config.template_list) && config.template_list.length > 0) {
+    const rendered = config.template_list.map((tpl) =>
+      renderTemplate(tpl, { from_city: from, to_city: to, price: startingPrice })
+    );
+    return [...new Set(rendered)].slice(0, 20);
+  }
+
   const routeKeywords = [
     `${from} to ${to} taxi`,
     `${from} to ${to} cab`,
@@ -43,7 +73,6 @@ export const generateKeywords = (fromCity, toCity, startingPrice) => {
     `taxi fare ${from} to ${to}`
   ];
 
-  // Combine and deduplicate
   const allKeywords = [
     ...routeKeywords,
     ...cityKeywords,
@@ -51,10 +80,19 @@ export const generateKeywords = (fromCity, toCity, startingPrice) => {
     ...priceKeywords
   ];
 
-  return [...new Set(allKeywords)].slice(0, 20); // Return top 20 to ensure minimum 15
+  return [...new Set(allKeywords)].slice(0, 20);
 };
 
-export const generateSEOContent = (fromCity, toCity, km, startingPrice) => {
+export const generateSEOContent = (fromCity, toCity, km, startingPrice, config = null) => {
+  if (config?.template_value) {
+    return renderTemplate(config.template_value, {
+      from_city: fromCity,
+      to_city: toCity,
+      distance_km: km,
+      price: startingPrice,
+    });
+  }
+
   return `
     <h2>Reliable ${fromCity} to ${toCity} Taxi Service</h2>
     <p>Traveling from <strong>${fromCity} to ${toCity}</strong>? We provide the best one-way cab service with well-maintained cars and professional drivers. Our service is available 24/7 for your convenience.</p>

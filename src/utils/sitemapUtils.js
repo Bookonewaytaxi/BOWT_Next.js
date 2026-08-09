@@ -220,6 +220,35 @@ export async function regenerateSitemap() {
 }
 
 /**
+ * Sitemap Automation — the single reusable trigger function.
+ *
+ * Called from route create/update/delete and SEO-save handlers. Checks
+ * the EXISTING `auto_regenerate` setting (already present in
+ * app_settings via getSitemapSettings/updateSitemapSettings — it just
+ * wasn't wired to anything until now) and, if enabled, calls the
+ * EXISTING regenerateSitemap() function — no new generation logic,
+ * no duplicate settings-check logic across call sites.
+ *
+ * Fire-and-forget by design: sitemap regeneration must never delay or
+ * fail the actual route save/delete the admin is performing. Errors are
+ * logged, never thrown back to the caller.
+ */
+export async function triggerAutoRegenerateIfEnabled(reason = 'route_change') {
+  try {
+    const settings = await getSitemapSettings();
+    if (!settings.sitemap_enabled || !settings.auto_regenerate) return;
+
+    console.log(`[Sitemap] Auto-regeneration triggered (${reason})`);
+    await regenerateSitemap();
+  } catch (error) {
+    // Deliberately swallowed — the admin's actual action (creating/
+    // editing/deleting a route, or saving SEO) must succeed regardless
+    // of sitemap regeneration outcome.
+    console.error(`[Sitemap] Auto-regeneration failed (${reason}):`, error);
+  }
+}
+
+/**
  * Returns the public URL for a given sitemap file in Supabase Storage.
  */
 export function getSitemapViewUrl(fileName) {
