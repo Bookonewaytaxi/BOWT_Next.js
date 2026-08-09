@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useSeoManagement } from '@/hooks/useSeoManagement';
 import RouteSeoEditor from '@/components/admin/RouteSeoEditor';
 import { Loader2 } from 'lucide-react';
+import { triggerAutoRegenerateIfEnabled } from '@/utils/sitemapUtils';
 
 export default function RouteSeoPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function RouteSeoPage() {
   const handleSave = async (updatedData) => {
     const { success } = await saveSeoData(routeId, updatedData);
     if (success) {
+      triggerAutoRegenerateIfEnabled('seo_updated');
       router.push('/admin/seo-dashboard');
     }
   };
