@@ -147,3 +147,32 @@ export const calculateStartingPrice = (route) => {
 
   return validPrices.length > 0 ? Math.min(...validPrices) : 0;
 };
+
+/**
+ * Returns a lightweight list of "popular" routes for internal-linking use.
+ *
+ * NOTE: this mirrors the exact same query already used inline in
+ * src/components/home/PopularRoutesSection.jsx (active routes, ordered by
+ * from_city, limited). There is no real popularity metric (booking count,
+ * click-through, etc.) in the schema yet — "popular" here means the same
+ * thing it already means on the live Home page today, not a new claim.
+ * Flagging as a future cleanup: PopularRoutesSection.jsx should eventually
+ * call this same function instead of its own inline query, so the logic
+ * exists in exactly one place.
+ */
+export const getPopularRoutes = async (limit = 8, excludeRouteId = null) => {
+  try {
+    const { data, error } = await supabase
+      .from('routes')
+      .select('id, from_city, to_city, slug')
+      .eq('is_active', true)
+      .order('from_city', { ascending: true })
+      .limit(limit + (excludeRouteId ? 1 : 0));
+
+    if (error) throw error;
+    return (data || []).filter((r) => r.id !== excludeRouteId).slice(0, limit);
+  } catch (err) {
+    console.error('[RouteService] Error fetching popular routes:', err);
+    return [];
+  }
+};
