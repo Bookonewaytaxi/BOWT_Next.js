@@ -85,8 +85,23 @@ export default function useInquiryCapture(customerData, enabled = true) {
         // Using Supabase directly
         const { error, data: insertedData } = await supabase.from('inquiries').insert([payload]).select().single();
 
-        if (error) throw error;
-        
+               if (error) throw error;
+
+        // Fire-and-forget admin notification (email + WhatsApp).
+        // Never blocks or breaks the capture flow if it fails.
+        fetch('/api/notify-inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.customer_name || 'Guest',
+            mobile: data.customer_mobile,
+            pickup_city,
+            drop_city,
+            travel_date,
+            source: 'price_page_drop_off',
+          }),
+        }).catch((notifyErr) => debugLog('Notify request failed', notifyErr));
+
         // Track inquiry submission event
         trackEvent('inquiry_submitted', {
           inquiry_id: insertedData?.id || 'unknown',
