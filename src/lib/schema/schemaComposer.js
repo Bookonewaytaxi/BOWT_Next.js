@@ -8,21 +8,10 @@ import { buildFaqSchema } from './faqSchema';
 
 /**
  * Composes the full JSON-LD graph for a single route page.
- *
- * - Combines Organization + Website + Service + Breadcrumb + WebPage + FAQ
- *   into ONE @graph array under a single shared @context (not 6 separate
- *   <script> tags each repeating "@context": "https://schema.org").
- * - Organization/Website are referenced by @id from Service/WebPage instead
- *   of being re-embedded — their data exists in exactly one place in code
- *   (organizationSchema.js / websiteSchema.js) AND appears exactly once in
- *   the rendered graph.
- * - Any module that returns null (missing required data) is silently
- *   dropped — never rendered as an empty/broken node.
- * - This function is driven entirely by the `route` object + the page's
- *   own breadcrumb items + its canonical URL — nothing else. It will work
- *   identically for any of the 22,000+ routes with zero manual setup.
+ * The FAQ data is passed explicitly so the structured data uses the exact
+ * same FAQ objects that are rendered visibly on the page.
  */
-export function composeRoutePageSchema({ route, breadcrumbItems, pageUrl }) {
+export function composeRoutePageSchema({ route, breadcrumbItems, pageUrl, faqs = [] }) {
   if (!route || !pageUrl) return null;
 
   const organization = buildOrganizationSchema();
@@ -35,10 +24,7 @@ export function composeRoutePageSchema({ route, breadcrumbItems, pageUrl }) {
     description: service ? service.description : undefined,
     breadcrumbRef: getBreadcrumbReference(pageUrl),
   });
-  // route.custom_faqs does not exist as a DB column yet (Module E not built).
-  // Passing undefined here safely returns null from buildFaqSchema — no
-  // fabricated FAQ content is ever generated.
-  const faq = buildFaqSchema(route.custom_faqs);
+  const faq = buildFaqSchema(faqs);
 
   const nodes = [organization, website, service, breadcrumb, webpage, faq]
     .filter(isValidSchema)
