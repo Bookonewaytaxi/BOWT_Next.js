@@ -10,13 +10,13 @@ export function buildRouteFaqs({ route, startingPrice = 0 }) {
     {
       question: `What is the distance from ${fromCity} to ${toCity} by taxi?`,
       answer: distance
-        ? `The road distance from ${fromCity} to ${toCity} is approximately ${distance} km. The actual travel distance can vary slightly with the pickup and drop location. The route page shows the currently available route distance."
+        ? `The road distance from ${fromCity} to ${toCity} is approximately ${distance} km. The actual travel distance can vary slightly with the pickup and drop location. The route page shows the currently available route distance.`
         : `The exact taxi distance depends on the selected pickup and drop locations in ${fromCity} and ${toCity}.`,
     },
     {
       question: `What is the taxi fare from ${fromCity} to ${toCity}?`,
       answer: price
-        ? `Taxi fares for ${fromCity} to ${toCity} start from ${price}. The final fare depends on the selected vehicle and the route pricing available for this booking.`,
+        ? `Taxi fares for ${fromCity} to ${toCity} start from ${price}. The final fare depends on the selected vehicle and the route pricing available for this booking.`
         : `The fare for ${fromCity} to ${toCity} depends on the vehicle selected and the route pricing available at the time of booking.`,
     },
     {
