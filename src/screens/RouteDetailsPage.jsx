@@ -58,51 +58,35 @@ export default function RouteDetailsPage({
     router.push('/booking/customer-details');
   };
 
-  // Next.js renders this component only once getStaticProps has resolved
-  // (fallback: 'blocking' never shows a client-side placeholder for this
-  // page) — but this guard stays as a safe fallback in case the component
-  // is ever rendered without props (e.g. a future preview/test harness).
   if (!route) {
     return null;
   }
 
-  // Derived Data
   const { from_city, to_city, distance_km } = route;
 
-  // Canonical URL — computed from real route data, works identically at
-  // build-time (getStaticProps) and runtime; no window/browser dependency.
   const pageUrl = route.slug ? `${SITE_URL}/routes/${route.slug}` : SITE_URL;
 
-  // SEO Metadata
   const seoTitle = route.seo_title || `${from_city} to ${to_city} Taxi Service - Book Now`;
   const seoDesc = route.seo_description || `Book reliable one-way taxi from ${from_city} to ${to_city}. Distance: ${distance_km || 'Standard'} km. Fares start ₹${startingPrice}.`;
   const seoKeywords = route.seo_keywords && Array.isArray(route.seo_keywords) ? route.seo_keywords.join(', ') : '';
 
-  // NOTE: <Breadcrumb /> (src/components/common/Breadcrumb.jsx) already
-  // renders its own hardcoded "Home" link before these items — so this
-  // array must NOT include Home, or the visible UI would show "Home > Home > ...".
   const breadcrumbItems = [
     { label: 'Routes', href: '/routes' },
     { label: from_city, href: `/routes/city/${slugify(from_city)}` },
     { label: `${from_city} to ${to_city}`, href: '#' }
   ];
 
-  // Schema must describe exactly what is visually rendered — which IS
-  // "Home > Routes > City > Route" (Home comes from Breadcrumb.jsx itself).
   const schemaBreadcrumbItems = [{ label: 'Home', href: '/' }, ...breadcrumbItems];
 
   const routeSchemaGraph = composeRoutePageSchema({ route, breadcrumbItems: schemaBreadcrumbItems, pageUrl });
 
-  // Module 2: single source of truth for which sections have real data —
-  // drives BOTH the Table of Contents and the actual section rendering below,
-  // so they can never drift out of sync.
   const sections = getRouteSectionAvailability({
     route,
     fromCityProfile: cityProfiles.fromProfile,
     toCityProfile: cityProfiles.toProfile,
     relatedRoutes,
-    faqs: route.custom_faqs, // does not exist as a DB column yet — always undefined today
-    approvedReviews: null, // Module F not built yet — always null today
+    faqs: route.custom_faqs,
+    approvedReviews: null,
   });
   const isAvailable = (id) => sections.find((s) => s.id === id)?.available;
 
@@ -111,11 +95,17 @@ export default function RouteDetailsPage({
       <Head>
         <title>{seoTitle}</title>
         <meta name="description" content={seoDesc} />
-        <meta name="keywords" content={seoKeywords} />
+        {seoKeywords && <meta name="keywords" content={seoKeywords} />}
+        <link rel="canonical" href={pageUrl} />
+        <meta name="robots" content="index,follow,max-image-preview:large" />
         <meta property="og:title" content={seoTitle} />
         <meta property="og:description" content={seoDesc} />
         <meta property="og:url" content={pageUrl} />
         <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Book One Way Taxi" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={seoTitle} />
+        <meta name="twitter:description" content={seoDesc} />
         {routeSchemaGraph && (
           <script
             type="application/ld+json"
