@@ -12,6 +12,13 @@ const nextConfig = {
       { source: '/admin/routes/new', destination: '/admin/routes/create', permanent: true },
     ];
   },
+
+  async rewrites() {
+    return [
+      { source: '/sitemap.xml', destination: '/api/sitemap.xml' },
+      { source: '/sitemap/:page.xml', destination: '/api/sitemap/:page.xml' },
+    ];
+  },
 };
 
 module.exports = nextConfig;
