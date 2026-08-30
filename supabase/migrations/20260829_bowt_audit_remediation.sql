@@ -72,9 +72,18 @@ SET published_at = COALESCE(published_at, updated_at, created_at),
     last_published_at = COALESCE(last_published_at, updated_at, created_at)
 WHERE publication_status = 'published';
 
-ALTER TABLE public.routes
-  ADD CONSTRAINT routes_publication_status_check
-  CHECK (publication_status IS NULL OR publication_status IN ('draft','review','published','archived'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.routes'::regclass
+      AND conname = 'routes_publication_status_check'
+  ) THEN
+    ALTER TABLE public.routes
+      ADD CONSTRAINT routes_publication_status_check
+      CHECK (publication_status IS NULL OR publication_status IN ('draft','review','published','archived'));
+  END IF;
+END $$;
 
 -- 5) Canonical route-pair uniqueness is added only after a hard duplicate gate.
 DO $$
