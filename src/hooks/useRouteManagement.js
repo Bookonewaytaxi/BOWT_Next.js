@@ -103,7 +103,7 @@ export const useRouteManagement = () => {
       console.error('Error updating route:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Failed to update route', 
+        title: 'Failed to update route',
         description: error.message 
       });
       return { success: false, error };
@@ -112,27 +112,35 @@ export const useRouteManagement = () => {
     }
   }, [toast]);
 
+  // Routes are SEO assets. Never hard-delete a published/production route.
+  // Archive via is_active=false so the existing frontend remains compatible
+  // before the new publication_status column is introduced. The migration
+  // will map inactive routes to publication_status='archived'.
   const deleteRoute = useCallback(async (id) => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('routes')
-        .delete()
-        .eq('id', id);
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id, is_active');
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Route could not be archived or was not found.');
+      }
 
       toast({ 
-        title: 'Deleted', 
-        description: 'Route deleted successfully.',
+        title: 'Route archived',
+        description: 'Route archived safely; existing database record and URL identity are preserved.',
         className: 'bg-amber-600 text-white border-none'
       });
-      return { success: true };
+      return { success: true, data };
     } catch (error) {
-      console.error('Error deleting route:', error);
+      console.error('Error archiving route:', error);
       toast({ 
-        variant: 'destructive', 
-        title: 'Failed to delete route', 
+        variant: 'destructive',
+        title: 'Archive Failed',
         description: error.message 
       });
       return { success: false, error };
