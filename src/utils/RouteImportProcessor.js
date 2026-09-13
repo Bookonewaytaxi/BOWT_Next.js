@@ -45,19 +45,21 @@ const parseCSV = (file) => new Promise((resolve, reject) => {
     transformHeader: normalizeHeader,
     complete: (results) => {
       try {
+        const parseErrors = (results.errors || []).map((e) => `CSV Parse Error: ${e.message}`);
+        if (parseErrors.length > 0) {
+          throw new Error(parseErrors.join('; '));
+        }
+
         const cleanData = (results.data || []).filter((row) =>
           Object.values(row || {}).some((value) => String(value ?? '').trim() !== '')
         );
         assertRowLimit(cleanData);
-        resolve({
-          data: cleanData,
-          errors: (results.errors || []).map((e) => `CSV Parse Error: ${e.message}`),
-        });
+        resolve({ data: cleanData, errors: [] });
       } catch (error) {
         reject(error);
       }
     },
-    error: reject,
+    error: (error) => reject(new Error(`CSV parse failed: ${error.message || error}`)),
   });
 });
 
