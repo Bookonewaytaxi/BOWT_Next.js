@@ -1,88 +1,222 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { slugify } from '@/lib/utils';
 import { generateSEOTitle, generateMetaDescription, generateKeywords } from '@/utils/seoGeneratorService';
 import { generateRouteContent, validateKeywordUsage } from '@/utils/ContentGeneratorService';
 
-/**
- * Validates strictly the required fields as per new requirements.
- * Required: from_city, to_city, km, sedan_price, suv_6_price, suv_7_price, premium_suv_price
- */
-export const validateRouteData = (rows) => {
-  const errors = [];
-  
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return { isValid: false, errors: ["No data found in file"] };
+const PAGE_SIZE = 1000;
+const WRITE_BATCH_SIZE = 250;
+
+const firstValue = (row, keys) => {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value;
   }
+  return undefined;
+};
 
-  rows.forEach((row, index) => {
-    const rowNum = index + 2; // +1 for 0-index, +1 for header row
+const normalizeCity = (value) => String(value ?? '').trim().replace(/\s+/g, ' ');
+const routeKey = (fromCity, toCity) => `${fromCity.toLowerCase()}::${toCity.toLowerCase()}`;
 
-    // Required Text Fields
-    if (!row.from_city || !String(row.from_city).trim()) {
-      errors.push(`Row ${rowNum}: 'from_city' is required`);
-    }
-    if (!row.to_city || !String(row.to_city).trim()) {
-      errors.push(`Row ${rowNum}: 'to_city' is required`);
-    }
+const parseNumber = (value) => {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const normalized = String(value).replace(/[,₹\s]/g, '');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+};
 
-    // Required Numeric Fields
-    // KM
-    const km = row.km || row.distance_km;
-    if (km === undefined || km === null || String(km).trim() === '') {
-      errors.push(`Row ${rowNum}: 'km' is required`);
-    } else if (isNaN(Number(km))) {
-      errors.push(`Row ${rowNum}: 'km' must be a valid number`);
-    }
-
-    // Sedan Price
-    const sedan = row.sedan_price || row.route_price;
-    if (sedan === undefined || sedan === null || String(sedan).trim() === '') {
-      errors.push(`Row ${rowNum}: 'sedan_price' is required`);
-    } else if (isNaN(Number(sedan))) {
-      errors.push(`Row ${rowNum}: 'sedan_price' must be a valid number`);
-    }
-
-    // SUV 6 (Ertiga)
-    const suv6 = row.suv_6_price || row.ertiga_price;
-    if (suv6 === undefined || suv6 === null || String(suv6).trim() === '') {
-      errors.push(`Row ${rowNum}: 'suv_6_price' is required`);
-    } else if (isNaN(Number(suv6))) {
-      errors.push(`Row ${rowNum}: 'suv_6_price' must be a valid number`);
-    }
-
-    // SUV 7 (Carens)
-    const suv7 = row.suv_7_price || row.carens_price;
-    if (suv7 === undefined || suv7 === null || String(suv7).trim() === '') {
-      errors.push(`Row ${rowNum}: 'suv_7_price' is required`);
-    } else if (isNaN(Number(suv7))) {
-      errors.push(`Row ${rowNum}: 'suv_7_price' must be a valid number`);
-    }
-
-    // Premium SUV (Crysta)
-    const premium = row.premium_suv_price || row.premium_price || row.innova_crysta_price;
-    if (premium === undefined || premium === null || String(premium).trim() === '') {
-      errors.push(`Row ${rowNum}: 'premium_suv_price' is required`);
-    } else if (isNaN(Number(premium))) {
-      errors.push(`Row ${rowNum}: 'premium_suv_price' must be a valid number`);
-    }
-  });
+const normalizeImportRow = (row) => {
+  const fromCity = normalizeCity(firstValue(row, ['from_city', 'pickup_city', 'pickup', 'from']));
+  const toCity = normalizeCity(firstValue(row, ['to_city', 'drop_city', 'drop', 'to']));
+  const distanceKm = parseNumber(firstValue(row, ['distance_km', 'km', 'distance']));
+  const sedanPrice = parseNumber(firstValue(row, ['sedan_price', 'sedan', 'route_price']));
+  const ertigaPrice = parseNumber(firstValue(row, ['ertiga_price', 'suv_6_price', 'suv_6', 'suv_price']));
+  const carensPrice = parseNumber(firstValue(row, ['carens_price', 'suv_7_price', 'suv_7', 'kia_carens_price']));
+  const crystaPrice = parseNumber(firstValue(row, ['innova_crysta_price', 'innova_price', 'premium_suv_price', 'premium_price', 'crysta_price']));
 
   return {
-    isValid: errors.length === 0,
-    errors
+    source: row,
+    fromCity,
+    toCity,
+    distanceKm,
+    sedanPrice,
+    ertigaPrice,
+    carensPrice,
+    crystaPrice,
+    status: String(firstValue(row, ['status', 'is_active']) ?? 'active').toLowerCase() === 'inactive' || firstValue(row, ['is_active']) === false ? 'inactive' : 'active',
+    seoTitle: firstValue(row, ['seo_title']),
+    seoDescription: firstValue(row, ['seo_description']),
+    seoKeywords: firstValue(row, ['seo_keywords']),
+    seoContent: firstValue(row, ['seo_content']),
+    description: firstValue(row, ['description']),
   };
 };
 
 /**
- * Main function to process import.
- * Note: Does NOT send slug to DB, relying on 'generate_route_slug_trigger' for NEW records.
+ * Accepts both the current canonical route sheet and the older importer format.
+ * Canonical sheet:
+ * pickup_city, drop_city, distance_km, sedan_price, ertiga_price,
+ * carens_price, innova_price
  */
+export const validateRouteData = (rows) => {
+  const errors = [];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { isValid: false, errors: ['No data found in file'] };
+  }
+
+  const seen = new Set();
+  rows.forEach((rawRow, index) => {
+    const rowNum = index + 2;
+    const row = normalizeImportRow(rawRow);
+
+    if (!row.fromCity) errors.push(`Row ${rowNum}: 'pickup_city' / 'from_city' is required`);
+    if (!row.toCity) errors.push(`Row ${rowNum}: 'drop_city' / 'to_city' is required`);
+
+    if (row.distanceKm === null || row.distanceKm < 0) {
+      errors.push(`Row ${rowNum}: 'distance_km' / 'km' must be a valid non-negative number`);
+    }
+    if (row.sedanPrice === null || row.sedanPrice < 0) {
+      errors.push(`Row ${rowNum}: 'sedan_price' must be a valid non-negative number`);
+    }
+    if (row.ertigaPrice === null || row.ertigaPrice < 0) {
+      errors.push(`Row ${rowNum}: 'ertiga_price' / 'suv_6_price' must be a valid non-negative number`);
+    }
+    if (row.carensPrice === null || row.carensPrice < 0) {
+      errors.push(`Row ${rowNum}: 'carens_price' / 'suv_7_price' must be a valid non-negative number`);
+    }
+    if (row.crystaPrice === null || row.crystaPrice < 0) {
+      errors.push(`Row ${rowNum}: 'innova_price' / 'innova_crysta_price' / 'premium_suv_price' must be a valid non-negative number`);
+    }
+
+    if (row.fromCity && row.toCity) {
+      const key = routeKey(row.fromCity, row.toCity);
+      if (seen.has(key)) errors.push(`Row ${rowNum}: duplicate route in the same file (${row.fromCity} → ${row.toCity})`);
+      seen.add(key);
+    }
+  });
+
+  return { isValid: errors.length === 0, errors };
+};
+
+const fetchAllExistingRoutes = async () => {
+  const allRoutes = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('routes')
+      .select('id, from_city, to_city, slug')
+      .range(from, to);
+
+    if (error) throw error;
+    const page = data || [];
+    allRoutes.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return allRoutes;
+};
+
+const toSeoKeywords = (value, fromCity, toCity, sedanPrice) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) return value.split(',').map((item) => item.trim()).filter(Boolean);
+  return generateKeywords(fromCity, toCity, sedanPrice);
+};
+
+const buildRoutePayload = (route) => {
+  const seoTitle = route.seoTitle || generateSEOTitle(route.fromCity, route.toCity, route.sedanPrice);
+  const seoDescription = route.seoDescription || generateMetaDescription(route.fromCity, route.toCity);
+  const seoKeywords = toSeoKeywords(route.seoKeywords, route.fromCity, route.toCity, route.sedanPrice);
+
+  let seoContent = route.seoContent;
+  let validation = { wordCount: 0, status: 'pending' };
+
+  if (!seoContent) {
+    const contentRoute = {
+      from_city: route.fromCity,
+      to_city: route.toCity,
+      distance_km: route.distanceKm,
+      sedan_price: route.sedanPrice,
+      ertiga_price: route.ertigaPrice,
+      carens_price: route.carensPrice,
+      innova_crysta_price: route.crystaPrice,
+    };
+    seoContent = generateRouteContent(contentRoute, seoKeywords, 'english');
+    validation = validateKeywordUsage(seoContent, seoKeywords, 'english');
+  }
+
+  const generatedSlug = `${slugify(route.fromCity)}-to-${slugify(route.toCity)}-taxi`;
+  const now = new Date().toISOString();
+
+  // Only columns already used by the existing Create/Edit route forms are sent.
+  // This prevents bulk import from failing because of optional/legacy columns
+  // that may not exist in a particular production schema version.
+  return {
+    from_city: route.fromCity,
+    to_city: route.toCity,
+    distance_km: route.distanceKm,
+    sedan_price: route.sedanPrice,
+    ertiga_price: route.ertigaPrice,
+    carens_price: route.carensPrice,
+    innova_crysta_price: route.crystaPrice,
+    route_price: route.sedanPrice,
+    distance: `${route.distanceKm} km`,
+    suv_price: route.ertigaPrice,
+    crysta_price: route.crystaPrice,
+    suv_ertiga_price: route.ertigaPrice,
+    kia_carens_price: route.carensPrice,
+    description: route.description || null,
+    is_active: route.status !== 'inactive',
+    slug: generatedSlug,
+    seo_title: seoTitle,
+    seo_description: seoDescription,
+    seo_keywords: seoKeywords,
+    seo_content: seoContent,
+    seo_content_language: 'english',
+    content_word_count: validation.wordCount,
+    content_validation_status: validation.status,
+    content_last_updated: now,
+    updated_at: now,
+  };
+};
+
+const writeBatches = async (table, rows, mode) => {
+  let success = 0;
+  const errors = [];
+
+  for (let i = 0; i < rows.length; i += WRITE_BATCH_SIZE) {
+    const batch = rows.slice(i, i + WRITE_BATCH_SIZE);
+    const response = mode === 'insert'
+      ? await supabase.from(table).insert(batch)
+      : await supabase.from(table).upsert(batch, { onConflict: 'id' });
+
+    if (response.error) {
+      // Retry the failed batch row-by-row so one bad row does not block
+      // thousands of otherwise valid routes, and return exact row errors.
+      for (const row of batch) {
+        const singleResponse = mode === 'insert'
+          ? await supabase.from(table).insert(row)
+          : await supabase.from(table).upsert(row, { onConflict: 'id' });
+        if (singleResponse.error) {
+          errors.push({ row, message: singleResponse.error.message, code: singleResponse.error.code });
+        } else {
+          success += 1;
+        }
+      }
+    } else {
+      success += batch.length;
+    }
+  }
+
+  return { success, errors };
+};
+
 export const processRoutesImport = async (parsedData, userId) => {
-  console.log("Starting processRoutesImport...");
-  const rows = Array.isArray(parsedData) ? parsedData : (parsedData.data || []);
-  const parseErrors = parsedData.errors || [];
-  
-  if (rows.length === 0) {
-    console.warn("No rows to process.");
+  const rows = Array.isArray(parsedData) ? parsedData : (parsedData?.data || []);
+  const parseErrors = Array.isArray(parsedData?.errors) ? parsedData.errors : [];
+
+  if (!rows.length) {
     return {
       totalRows: 0,
       createdCount: 0,
@@ -90,198 +224,80 @@ export const processRoutesImport = async (parsedData, userId) => {
       errorCount: parseErrors.length,
       errors: parseErrors,
       createdRoutes: [],
-      updatedRoutes: []
+      updatedRoutes: [],
     };
   }
 
-  // 1. Fetch existing to handle Upserts (Update if exists, Insert if new)
-  const { data: existingRoutes, error: fetchError } = await supabase
-    .from('routes')
-    .select('id, from_city, to_city');
+  const validation = validateRouteData(rows);
+  if (!validation.isValid) {
+    return {
+      totalRows: rows.length,
+      createdCount: 0,
+      updatedCount: 0,
+      errorCount: validation.errors.length,
+      errors: validation.errors,
+      createdRoutes: [],
+      updatedRoutes: [],
+    };
+  }
 
-  if (fetchError) throw fetchError;
-
-  const routeMap = new Map();
-  existingRoutes.forEach(r => {
-    const key = `${r.from_city.toLowerCase().trim()}-${r.to_city.toLowerCase().trim()}`;
-    routeMap.set(key, r.id);
-  });
+  const existingRoutes = await fetchAllExistingRoutes();
+  const routeMap = new Map(existingRoutes.map((route) => [routeKey(route.from_city, route.to_city), route]));
 
   const toInsert = [];
   const toUpdate = [];
   const processedCreated = [];
   const processedUpdated = [];
-  const processingErrors = [...parseErrors];
 
-  // 2. Transform Data
-  rows.forEach((row, index) => {
-    const rowNum = index + 2;
-    try {
-        console.log(`Processing Row ${rowNum}: ${row.from_city} -> ${row.to_city}`);
-        
-        // Clean City Names
-        const fromCity = String(row.from_city).trim();
-        const toCity = String(row.to_city).trim();
-        const key = `${fromCity.toLowerCase()}-${toCity.toLowerCase()}`;
-        const existingId = routeMap.get(key);
+  for (const rawRow of rows) {
+    const route = normalizeImportRow(rawRow);
+    const key = routeKey(route.fromCity, route.toCity);
+    const existing = routeMap.get(key);
+    const payload = buildRoutePayload(route);
 
-        // Map Prices
-        const km = Number(row.km || row.distance_km);
-        const sedanPrice = Number(row.sedan_price || row.route_price);
-        const suv6Price = Number(row.suv_6_price || row.ertiga_price);
-        const suv7Price = Number(row.suv_7_price || row.carens_price);
-        const premiumSuvPrice = Number(row.premium_suv_price || row.innova_crysta_price || row.premium_price);
-
-        console.log(`Row ${rowNum} Prices: Sedan: ${sedanPrice}, SUV6: ${suv6Price}, SUV7: ${suv7Price}, Premium: ${premiumSuvPrice}`);
-
-        // SEO Defaults
-        const seo_title = row.seo_title || generateSEOTitle(fromCity, toCity, sedanPrice);
-        const seo_description = row.seo_description || generateMetaDescription(fromCity, toCity);
-        const seo_keywords = row.seo_keywords ? 
-            (typeof row.seo_keywords === 'string' ? row.seo_keywords.split(',') : row.seo_keywords) 
-            : generateKeywords(fromCity, toCity, sedanPrice);
-        
-        // Content
-        const language = 'english';
-        let content = row.seo_content;
-        let validation = { wordCount: 0, status: 'pending' };
-
-        if (!content) {
-             const routeObj = {
-                from_city: fromCity,
-                to_city: toCity,
-                distance_km: km,
-                sedan_price: sedanPrice,
-                ertiga_price: suv6Price,
-                carens_price: suv7Price,
-                innova_crysta_price: premiumSuvPrice
-            };
-            content = generateRouteContent(routeObj, seo_keywords, language);
-            validation = validateKeywordUsage(content, seo_keywords, language);
-        }
-
-        // Prepare Payload - CRITICAL: NO SLUG INCLUDED
-        // Ensure ALL price columns are included in the payload
-        const routePayload = {
-          from_city: fromCity,
-          to_city: toCity,
-          distance_km: km,
-          distance: `${km} km`,
-          
-          // Core New Price Columns
-          sedan_price: sedanPrice,
-          suv_6_price: suv6Price,
-          suv_7_price: suv7Price,
-          premium_suv_price: premiumSuvPrice,
-          
-          // Legacy/Duplicate Pricing Columns (for compatibility if needed, though we prioritize core ones)
-          route_price: sedanPrice, // often aliased to sedan
-          ertiga_price: suv6Price,
-          carens_price: suv7Price,
-          innova_crysta_price: premiumSuvPrice,
-          suv_price: suv6Price, // Legacy mapping
-          suv_ertiga_price: suv6Price,
-          kia_carens_price: suv7Price,
-          crysta_price: premiumSuvPrice,
-
-          is_active: row.status === 'inactive' || row.status === false ? false : true,
-          updated_at: new Date().toISOString(),
-
-          // SEO
-          seo_title,
-          seo_description,
-          seo_keywords,
-          seo_content: content,
-          seo_content_language: language,
-          content_word_count: validation.wordCount,
-          content_validation_status: validation.status,
-          content_last_updated: new Date().toISOString()
-        };
-
-        if (existingId) {
-            // Update: Do not touch slug. DB keeps existing.
-            console.log(`Row ${rowNum}: Found existing route ID ${existingId}. Queueing for UPDATE.`);
-            toUpdate.push({ id: existingId, ...routePayload });
-            processedUpdated.push({ from_city: fromCity, to_city: toCity });
-        } else {
-            // Insert: Do not send slug. Trigger will generate it.
-            console.log(`Row ${rowNum}: New route. Queueing for INSERT (Delegating slug generation to DB trigger).`);
-            toInsert.push({ 
-                ...routePayload, 
-                created_at: new Date().toISOString() 
-            });
-            processedCreated.push({ from_city: fromCity, to_city: toCity });
-        }
-
-    } catch (err) {
-        console.error(`Error processing row ${rowNum}:`, err);
-        processingErrors.push(`Row ${rowNum}: ${err.message}`);
+    if (existing) {
+      toUpdate.push({ id: existing.id, ...payload, slug: existing.slug || payload.slug });
+      processedUpdated.push({ from_city: route.fromCity, to_city: route.toCity });
+    } else {
+      toInsert.push({ ...payload, created_at: new Date().toISOString() });
+      processedCreated.push({ from_city: route.fromCity, to_city: route.toCity });
     }
-  });
-
-  // 3. Execute Database Operations
-  let successInserts = 0;
-  let successUpdates = 0;
-  const BATCH_SIZE = 50;
-
-  try {
-      // Inserts
-      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
-        const batch = toInsert.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase.from('routes').insert(batch);
-        
-        if (error) {
-            console.error("Batch Insert Failed:", error);
-            throw new Error(`Insert failed: ${error.message}`);
-        }
-        successInserts += batch.length;
-      }
-      console.log(`Successfully inserted ${successInserts} new routes.`);
-
-      // Updates
-      for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
-        const batch = toUpdate.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase.from('routes').upsert(batch, { onConflict: 'id' });
-        
-        if (error) {
-            console.error("Batch Update Failed:", error);
-            throw new Error(`Update failed: ${error.message}`);
-        }
-        successUpdates += batch.length;
-      }
-      console.log(`Successfully updated ${successUpdates} existing routes.`);
-
-  } catch (err) {
-      console.error("Database operation failed:", err);
-      throw err;
   }
 
-  // 4. Log
+  const [insertResult, updateResult] = await Promise.all([
+    writeBatches('routes', toInsert, 'insert'),
+    writeBatches('routes', toUpdate, 'update'),
+  ]);
+
+  const processingErrors = [
+    ...parseErrors,
+    ...insertResult.errors.map((item) => `Insert failed for ${item.row.from_city} → ${item.row.to_city}: ${item.message}${item.code ? ` [${item.code}]` : ''}`),
+    ...updateResult.errors.map((item) => `Update failed for ${item.row.from_city} → ${item.row.to_city}: ${item.message}${item.code ? ` [${item.code}]` : ''}`),
+  ];
+
+  // Import logging is intentionally non-blocking. The importer must never
+  // report a route failure because an optional audit/log table is unavailable.
   try {
-    await supabase.from('import_logs').insert([{
-        admin_id: userId,
-        file_name: "bulk_import_" + new Date().getTime(),
-        total_rows: rows.length,
-        created_count: successInserts,
-        updated_count: successUpdates,
-        error_count: processingErrors.length,
-        status: processingErrors.length === 0 ? 'success' : 'partial',
-        error_details: processingErrors.length > 0 ? processingErrors : null
-    }]);
-  } catch (e) {
-      console.warn("Logging failed", e);
+    console.info('[RouteImportService] Import summary', {
+      adminId: userId || null,
+      totalRows: rows.length,
+      created: insertResult.success,
+      updated: updateResult.success,
+      errors: processingErrors.length,
+    });
+  } catch (_) {
+    // no-op
   }
 
   return {
     totalRows: rows.length,
-    createdCount: successInserts,
-    updatedCount: successUpdates,
+    createdCount: insertResult.success,
+    updatedCount: updateResult.success,
     errorCount: processingErrors.length,
     errors: processingErrors,
     createdRoutes: processedCreated,
-    updatedRoutes: processedUpdated
+    updatedRoutes: processedUpdated,
   };
 };
 
-// Alias for compatibility if needed elsewhere, though export is named
 export const importRoutes = processRoutesImport;
