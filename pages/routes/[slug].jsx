@@ -1,6 +1,7 @@
 import RouteDetailsPage from '@/screens/RouteDetailsPage';
 import { getRouteBySlug, calculateStartingPrice, getRoutesByCity, getPopularRoutes } from '@/services/RouteService';
 import { getRouteCityProfiles } from '@/services/CityContentService';
+import { getApprovedFaqs } from '@/services/FaqService';
 
 export default function Page(props) {
   return <RouteDetailsPage {...props} />;
@@ -8,9 +9,7 @@ export default function Page(props) {
 
 // No paths are pre-built at deploy time (22,000+ routes would make builds
 // impossibly slow). Every route generates on its first real visit
-// (fallback: 'blocking' — the visitor waits for server-rendered HTML,
-// never sees a client-side loading spinner), then is served from cache
-// for all subsequent requests until revalidation.
+// (fallback: 'blocking'), then is served from cache until revalidation.
 export async function getStaticPaths() {
   return {
     paths: [],
@@ -25,36 +24,31 @@ export async function getStaticProps({ params }) {
   try {
     route = await getRouteBySlug(slug);
   } catch (err) {
-    // A real backend/query error occurred. This must NEVER be silently
-    // converted into notFound: true — a 404 must only ever mean "this
-    // route genuinely doesn't exist." Logging clearly here, then
-    // re-throwing so Next.js surfaces this as an actual error rather
-    // than masking it. Check your deployment's function logs for this
-    // exact message to see the real underlying error.
     console.error(`[getStaticProps] Unexpected error loading route "${slug}":`, err);
     throw err;
   }
 
   if (!route) {
-    // Genuinely no active route matches this slug.
     return { notFound: true, revalidate: 3600 };
   }
 
   const startingPrice = calculateStartingPrice(route);
 
-  // Same non-blocking-in-spirit calls as before, just run in parallel
-  // on the server instead of sequentially after client mount. Reuses
-  // the exact same service functions, unchanged. These functions each
-  // catch their own errors internally and return safe empty defaults
-  // ([] / { fromProfile: null, toProfile: null }) — they never throw,
-  // so no additional try/catch is needed around this block.
-  const [relatedRoutesRaw, toCityRoutesRaw, popularRoutes, cityProfiles] = await Promise.all([
+  // FAQ rows are published data, so they are fetched on the server together
+  // with the other route dependencies. A failure here must not turn a healthy
+  // route into a 500; RouteDetailsPage keeps its deterministic legacy FAQ
+  // fallback for routes that have not yet been generated in route_faqs.
+  const [relatedRoutesRaw, toCityRoutesRaw, popularRoutes, cityProfiles, approvedFaqs] = await Promise.all([
     route.from_city ? getRoutesByCity(route.from_city) : Promise.resolve([]),
     route.to_city ? getRoutesByCity(route.to_city) : Promise.resolve([]),
     getPopularRoutes(8, route.id),
     route.from_city && route.to_city
       ? getRouteCityProfiles(route.from_city, route.to_city)
       : Promise.resolve({ fromProfile: null, toProfile: null }),
+    getApprovedFaqs(route.id).catch((error) => {
+      console.error(`[getStaticProps] FAQ fetch failed for route "${slug}":`, error);
+      return [];
+    }),
   ]);
 
   const relatedRoutes = relatedRoutesRaw.filter((r) => r.id !== route.id).slice(0, 6);
@@ -68,10 +62,8 @@ export async function getStaticProps({ params }) {
       toCityRoutes,
       popularRoutes,
       cityProfiles,
+      approvedFaqs,
     },
-    // Background revalidation: next visit after 1 hour triggers a fresh
-    // server-side regeneration; visitors in the meantime keep getting
-    // the fast, cached version. Matches the roadmap's approved interval.
     revalidate: 3600,
   };
 }
