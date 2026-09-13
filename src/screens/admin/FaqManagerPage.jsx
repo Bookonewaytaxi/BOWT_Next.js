@@ -8,7 +8,26 @@ import { ArrowLeft, RefreshCcw, HelpCircle, AlertTriangle, Search } from 'lucide
 import { generateFaqsForRoute } from '@/lib/faq/faqTemplateEngine';
 import { upsertFaqs, getFaqsByRouteId } from '@/services/FaqService';
 
+const PAGE_SIZE = 1000;
 const BATCH_SIZE = 50;
+
+const fetchAllRows = async (table, select, filters = []) => {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase.from(table).select(select).range(from, from + PAGE_SIZE - 1);
+    for (const applyFilter of filters) query = applyFilter(query);
+    const { data, error } = await query;
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+};
 
 export default function FaqManagerPage() {
   const router = useRouter();
@@ -28,11 +47,17 @@ export default function FaqManagerPage() {
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const { data: routes, error: routesError } = await supabase.from('routes').select('id').eq('is_active', true);
-      if (routesError) throw routesError;
-
-      const { data: faqRows, error: faqError } = await supabase.from('route_faqs').select('route_id').eq('status', 'approved');
-      if (faqError) throw faqError;
+      // Supabase commonly caps an un-ranged response at 1,000 rows. The old
+      // dashboard therefore reported exactly 1,000 routes/FAQ rows even when
+      // production contained more. Always paginate these aggregate queries.
+      const [routes, faqRows] = await Promise.all([
+        fetchAllRows('routes', 'id', [
+          (query) => query.eq('is_active', true),
+        ]),
+        fetchAllRows('route_faqs', 'route_id', [
+          (query) => query.eq('status', 'approved'),
+        ]),
+      ]);
 
       const routesWithFaqs = new Set((faqRows || []).map((f) => f.route_id)).size;
       const totalActiveRoutes = routes?.length || 0;
@@ -41,7 +66,7 @@ export default function FaqManagerPage() {
         totalActiveRoutes,
         routesWithFaqs,
         totalApprovedFaqRows: faqRows?.length || 0,
-        routesWithoutFaqs: totalActiveRoutes - routesWithFaqs,
+        routesWithoutFaqs: Math.max(0, totalActiveRoutes - routesWithFaqs),
       });
     } catch (err) {
       console.error('[FaqManagerPage] Failed to load stats:', err);
@@ -59,11 +84,14 @@ export default function FaqManagerPage() {
     const localFailures = [];
 
     try {
-      const { data: routes, error } = await supabase.from('routes').select('*').eq('is_active', true);
-      if (error) throw error;
+      const routes = await fetchAllRows('routes', '*', [
+        (query) => query.eq('is_active', true),
+      ]);
 
-      const total = routes?.length || 0;
-      let done = 0, successCount = 0, failedCount = 0;
+      const total = routes.length;
+      let done = 0;
+      let successCount = 0;
+      let failedCount = 0;
 
       setProgress({ done: 0, total, successCount: 0, failedCount: 0, currentRouteLabel: '' });
 
@@ -74,15 +102,20 @@ export default function FaqManagerPage() {
           try {
             const faqs = generateFaqsForRoute(route);
             if (faqs.length === 0) {
-              done += 1; successCount += 1;
+              done += 1;
+              successCount += 1;
             } else {
               const result = await upsertFaqs(route.id, faqs);
               done += 1;
               if (result.success) successCount += 1;
-              else { failedCount += 1; localFailures.push({ route: routeLabel, error: result.error || 'Unknown error' }); }
+              else {
+                failedCount += 1;
+                localFailures.push({ route: routeLabel, error: result.error || 'Unknown error' });
+              }
             }
           } catch (err) {
-            done += 1; failedCount += 1;
+            done += 1;
+            failedCount += 1;
             localFailures.push({ route: routeLabel, error: err.message || 'Unexpected error' });
           }
           setProgress({ done, total, successCount, failedCount, currentRouteLabel: routeLabel });
