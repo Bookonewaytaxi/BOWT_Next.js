@@ -30,6 +30,7 @@ export default function RouteDetailsPage({
   toCityRoutes = [],
   popularRoutes = [],
   cityProfiles = { fromProfile: null, toProfile: null },
+  approvedFaqs = [],
 }) {
   const router = useRouter();
 
@@ -67,9 +68,13 @@ export default function RouteDetailsPage({
   ];
   const schemaBreadcrumbItems = [{ label: 'Home', href: '/' }, ...breadcrumbItems];
 
-  // One deterministic FAQ source is used by both the visible FAQ section and
-  // JSON-LD, preventing schema/content mismatches.
-  const faqs = buildRouteFaqs({ route, startingPrice });
+  // DB-approved FAQs are the primary source. The deterministic legacy builder
+  // remains a safe fallback until every active route has approved DB FAQs.
+  const fallbackFaqs = buildRouteFaqs({ route, startingPrice });
+  const faqs = Array.isArray(approvedFaqs) && approvedFaqs.length > 0 ? approvedFaqs : fallbackFaqs;
+
+  // The same FAQ array drives both visible content and JSON-LD, so the page
+  // cannot publish FAQ schema for questions that are not visible on the page.
   const routeSchemaGraph = composeRoutePageSchema({
     route,
     breadcrumbItems: schemaBreadcrumbItems,
