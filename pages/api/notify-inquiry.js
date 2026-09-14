@@ -18,5 +18,12 @@ export default async function handler(req, res) {
     sendAdminWhatsApp(payload),
   ]);
 
-  return res.status(200).json({ email: emailResult, whatsapp: whatsappResult });
+  // Notification failures are reported in the response but intentionally do
+  // not fail the request: the inquiry has already been saved in Supabase and
+  // the customer must still be allowed to continue to the price page.
+  return res.status(200).json({
+    ok: whatsappResult.ok,
+    email: emailResult,
+    whatsapp: whatsappResult,
+  });
 }
