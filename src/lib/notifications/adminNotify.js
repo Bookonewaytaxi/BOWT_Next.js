@@ -1,11 +1,6 @@
 import nodemailer from 'nodemailer';
 import twilio from 'twilio';
 
-/**
- * Sends the admin a new-inquiry alert by email (Gmail SMTP).
- * Never throws — logs and returns { ok: false } on failure so one
- * channel failing doesn't block the other.
- */
 export async function sendAdminEmail({ name, mobile, pickup_city, drop_city, travel_date, source }) {
   try {
     const transporter = nodemailer.createTransport({
@@ -45,33 +40,62 @@ export async function sendAdminEmail({ name, mobile, pickup_city, drop_city, tra
 
 /**
  * Sends the admin a new-inquiry alert on WhatsApp (Twilio).
- * NOTE (sandbox mode): the admin number must have sent "join <code>"
- * to the Twilio sandbox number, and that session expires after
- * ~3 days of inactivity — it will need re-joining periodically until
- * a production WhatsApp sender is approved.
+ * Production WhatsApp should use an approved Content Template.
+ * Set TWILIO_WHATSAPP_CONTENT_SID to that approved template SID.
+ * Template variables 1-6 are: name, mobile, pickup, drop, date, source.
+ * Without a Content SID, plain body mode is retained for Sandbox/in-session testing.
  */
 export async function sendAdminWhatsApp({ name, mobile, pickup_city, drop_city, travel_date, source }) {
   try {
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_WHATSAPP_FROM;
+    const to = process.env.ADMIN_WHATSAPP_NUMBER;
+    const contentSid = process.env.TWILIO_WHATSAPP_CONTENT_SID;
 
-    const body = [
-      `🚕 *New Inquiry — BookOneWayTaxi*`,
-      `Name: ${name || 'Guest'}`,
-      `Mobile: ${mobile || '-'}`,
-      `Route: ${pickup_city || '-'} → ${drop_city || '-'}`,
-      `Date: ${travel_date || '-'}`,
-      `Source: ${source || '-'}`,
-    ].join('\n');
+    const missing = [
+      ['TWILIO_ACCOUNT_SID', accountSid],
+      ['TWILIO_AUTH_TOKEN', authToken],
+      ['TWILIO_WHATSAPP_FROM', from],
+      ['ADMIN_WHATSAPP_NUMBER', to],
+    ].filter(([, value]) => !value).map(([key]) => key);
 
-    await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_FROM,
-      to: process.env.ADMIN_WHATSAPP_NUMBER,
-      body,
-    });
+    if (missing.length) {
+      const error = `WhatsApp notification is not configured: missing ${missing.join(', ')}`;
+      console.error(`[adminNotify] ${error}`);
+      return { ok: false, error, code: 'WHATSAPP_CONFIG_MISSING' };
+    }
 
-    return { ok: true };
+    const client = twilio(accountSid, authToken);
+    const message = { from, to };
+
+    if (contentSid) {
+      message.contentSid = contentSid;
+      message.contentVariables = JSON.stringify({
+        '1': name || 'Guest',
+        '2': mobile || '-',
+        '3': pickup_city || '-',
+        '4': drop_city || '-',
+        '5': travel_date || '-',
+        '6': source || '-',
+      });
+    } else {
+      message.body = [
+        `🚕 *New Inquiry — BookOneWayTaxi*`,
+        `Name: ${name || 'Guest'}`,
+        `Mobile: ${mobile || '-'}`,
+        `Route: ${pickup_city || '-'} → ${drop_city || '-'}`,
+        `Date: ${travel_date || '-'}`,
+        `Source: ${source || '-'}`,
+      ].join('\n');
+    }
+
+    const result = await client.messages.create(message);
+    return { ok: true, sid: result.sid, mode: contentSid ? 'template' : 'body' };
   } catch (err) {
-    console.error('[adminNotify] WhatsApp failed:', err.message);
-    return { ok: false, error: err.message };
+    const error = err?.message || 'Unknown Twilio WhatsApp error';
+    const code = err?.code ? String(err.code) : undefined;
+    console.error('[adminNotify] WhatsApp failed:', { code, error });
+    return { ok: false, error, code };
   }
 }
