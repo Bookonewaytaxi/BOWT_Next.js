@@ -2,6 +2,29 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 
+const PAGE_SIZE = 1000;
+
+const fetchAllRoutes = async () => {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('routes')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+};
+
 export const useRouteManagement = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -9,19 +32,14 @@ export const useRouteManagement = () => {
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('routes')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchAllRoutes();
       return { success: true, data };
     } catch (error) {
       console.error('Error fetching routes:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Error Fetching Routes', 
-        description: error.message || 'Failed to fetch routes.' 
+      toast({
+        variant: 'destructive',
+        title: 'Error Fetching Routes',
+        description: error.message || 'Failed to fetch routes.'
       });
       return { success: false, error };
     } finally {
@@ -37,15 +55,15 @@ export const useRouteManagement = () => {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) throw error;
       return { success: true, data };
     } catch (error) {
       console.error('Error fetching route:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Error', 
-        description: error.message || 'Failed to fetch route details.' 
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to fetch route details.'
       });
       return { success: false, error };
     } finally {
@@ -62,19 +80,19 @@ export const useRouteManagement = () => {
         .select();
 
       if (error) throw error;
-      
-      toast({ 
-        title: 'Success', 
+
+      toast({
+        title: 'Success',
         description: 'New route created successfully.',
         className: 'bg-green-600 text-white border-none'
       });
       return { success: true, data };
     } catch (error) {
       console.error('Error creating route:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Failed to create route', 
-        description: error.message 
+      toast({
+        variant: 'destructive',
+        title: 'Failed to create route',
+        description: error.message
       });
       return { success: false, error };
     } finally {
@@ -93,18 +111,18 @@ export const useRouteManagement = () => {
 
       if (error) throw error;
 
-      toast({ 
-        title: 'Success', 
+      toast({
+        title: 'Success',
         description: 'Route updated successfully.',
         className: 'bg-green-600 text-white border-none'
       });
       return { success: true, data };
     } catch (error) {
       console.error('Error updating route:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Failed to update route', 
-        description: error.message 
+      toast({
+        variant: 'destructive',
+        title: 'Failed to update route',
+        description: error.message
       });
       return { success: false, error };
     } finally {
@@ -122,18 +140,18 @@ export const useRouteManagement = () => {
 
       if (error) throw error;
 
-      toast({ 
-        title: 'Deleted', 
+      toast({
+        title: 'Deleted',
         description: 'Route deleted successfully.',
         className: 'bg-amber-600 text-white border-none'
       });
       return { success: true };
     } catch (error) {
       console.error('Error deleting route:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Failed to delete route', 
-        description: error.message 
+      toast({
+        variant: 'destructive',
+        title: 'Failed to delete route',
+        description: error.message
       });
       return { success: false, error };
     } finally {
