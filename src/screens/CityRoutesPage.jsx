@@ -26,8 +26,9 @@ export default function CityRoutesPage() {
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
+    if (!router.isReady || !citySlug) return;
     fetchRoutes();
-  }, [citySlug]);
+  }, [router.isReady, citySlug]);
 
   const fetchRoutes = async () => {
     setLoading(true);
@@ -38,6 +39,7 @@ export default function CityRoutesPage() {
     } catch (err) {
       console.error('Error fetching routes:', err);
       setError(err);
+      setRoutes([]);
     } finally {
       setLoading(false);
     }
@@ -48,17 +50,17 @@ export default function CityRoutesPage() {
     setCurrentPage(1);
   };
 
-  const filteredRoutes = routes.filter(route => route.to_city.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredRoutes = routes.filter(route => (route.to_city || '').toLowerCase().includes(searchTerm.toLowerCase()));
   const totalPages = Math.ceil(filteredRoutes.length / ITEMS_PER_PAGE);
   const paginatedRoutes = filteredRoutes.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const breadcrumbItems = [
     { label: 'Routes', href: '/routes' },
-    { label: cityName, href: `/routes/${citySlug}` }
+    { label: cityName, href: `/routes/city/${citySlug}` }
   ];
-  const canonicalUrl = citySlug ? `https://bookonewaytaxi.in/routes/${slugify(cityName)}` : 'https://bookonewaytaxi.in/routes';
+  const canonicalUrl = citySlug ? `https://bookonewaytaxi.in/routes/city/${slugify(cityName)}` : 'https://bookonewaytaxi.in/routes';
   const seoTitle = `Routes from ${cityName} | One-Way Taxi Service`;
-  const seoDescription = `Explore all active one-way taxi routes from ${cityName}. Best fares guaranteed for verified cabs to popular destinations.`;
+  const seoDescription = `Explore active one-way taxi routes from ${cityName} and check the available destinations and route fares.`;
 
   return (
     <>
@@ -78,18 +80,9 @@ export default function CityRoutesPage() {
         <Header />
         <div className="bg-slate-900 border-b border-slate-800 pt-24 pb-12">
           <div className="container mx-auto px-4">
-            <div className="mb-6">
-              <Link href="/routes">
-                <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800 pl-0 gap-2">
-                  <ArrowLeft className="w-4 h-4" /> Back to All Cities
-                </Button>
-              </Link>
-            </div>
+            <div className="mb-6"><Link href="/routes"><Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800 pl-0 gap-2"><ArrowLeft className="w-4 h-4" /> Back to All Cities</Button></Link></div>
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div>
-                <h1 className="text-3xl md:text-5xl font-black text-white mb-2">Routes From <span className="text-amber-500">{cityName}</span></h1>
-                <p className="text-slate-400 text-lg">{routes.length} active destinations available</p>
-              </div>
+              <div><h1 className="text-3xl md:text-5xl font-black text-white mb-2">Routes From <span className="text-amber-500">{cityName}</span></h1><p className="text-slate-400 text-lg">{routes.length} active destinations available</p></div>
               <div className="w-full md:w-96"><CitySearchBox onSearch={handleSearch} placeholder="Search destination..." /></div>
             </div>
           </div>
@@ -97,22 +90,15 @@ export default function CityRoutesPage() {
 
         <div className="container mx-auto px-4 py-6">
           <Breadcrumb items={breadcrumbItems} />
+          {error && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-red-700">Unable to load routes right now. Please refresh and try again.</div>}
           <div className="mb-12">
             {loading ? (
               <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-amber-500" /></div>
             ) : filteredRoutes.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-slate-100">
-                <h3 className="text-xl font-bold text-slate-700">No routes found</h3>
-                <p className="text-slate-500 mt-2">Try searching for a different destination or contact us for a custom quote.</p>
-              </div>
+              <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-slate-100"><h3 className="text-xl font-bold text-slate-700">No routes found</h3><p className="text-slate-500 mt-2">Try searching for a different destination or contact us for a custom quote.</p></div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 shadow-sm overflow-hidden">
-                {paginatedRoutes.map((route) => (
-                  <Link key={route.id} href={`/routes/${route.slug || '#'}`} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group">
-                    <span className="text-slate-800 font-medium">{route.from_city || 'City'} <span className="text-slate-400">→</span> {route.to_city || 'City'}</span>
-                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors" />
-                  </Link>
-                ))}
+                {paginatedRoutes.map((route) => <Link key={route.id} href={route.slug ? `/routes/${route.slug}` : '/routes'} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"><span className="text-slate-800 font-medium">{route.from_city || cityName} <span className="text-slate-400">→</span> {route.to_city || 'City'}</span><ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors" /></Link>)}
               </div>
             )}
           </div>
