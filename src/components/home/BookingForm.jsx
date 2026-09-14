@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, ArrowRight, Loader2, User, Phone } from 'lucide-react';
@@ -10,11 +10,14 @@ import { cn } from '@/lib/utils';
 import SmartCityAutocomplete from './SmartCityAutocomplete';
 import { validateInquiryForm } from '@/utils/validateInquiryForm';
 import { trackEvent } from '@/utils/gtm';
+import { useInquiries } from '@/hooks/useInquiries';
 
 export default function BookingForm({ prefilledPrice = null }) {
   const { toast } = useToast();
   const router = useRouter();
+  const { submitInquiry } = useInquiries();
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -44,8 +47,44 @@ export default function BookingForm({ prefilledPrice = null }) {
     }
   };
 
+  const notifyAdminWhatsApp = async () => {
+    try {
+      const response = await fetch('/api/notify-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.customer_name,
+          mobile: formData.customer_mobile,
+          pickup_city: formData.pickup_city,
+          drop_city: formData.drop_city,
+          travel_date: formData.travel_date,
+          source: prefilledPrice ? 'booking_form' : 'homepage_booking_form',
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('[BookingForm] Admin notification request failed:', response.status);
+        return false;
+      }
+
+      const result = await response.json().catch(() => null);
+      if (result?.whatsapp?.ok !== true) {
+        console.error('[BookingForm] WhatsApp notification was not confirmed:', result?.whatsapp);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[BookingForm] Admin WhatsApp notification error:', error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent double-click / duplicate inquiry creation while the request is running.
+    if (submitLockRef.current || loading) return;
     
     // Run validation
     const validationErrors = validateInquiryForm(formData);
@@ -68,6 +107,7 @@ export default function BookingForm({ prefilledPrice = null }) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
 
     try {
@@ -78,7 +118,24 @@ export default function BookingForm({ prefilledPrice = null }) {
          travel_date: formData.travel_date
       });
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // IMPORTANT: capture the lead before leaving the page. This runs for every
+      // valid form submission, even when the visitor does not complete a booking.
+      const inquiryResult = await submitInquiry({
+        ...formData,
+        name: formData.customer_name,
+        phone: formData.customer_mobile,
+        email: '-',
+        message: 'Homepage booking form submitted',
+        status: 'new_inquiry',
+      });
+
+      if (!inquiryResult?.success) {
+        throw inquiryResult?.error || new Error('Could not save your inquiry.');
+      }
+
+      // Notification is best-effort and must never prevent a valid lead from
+      // being saved or stop the visitor from continuing to the price page.
+      void notifyAdminWhatsApp();
 
       clearBookingState();
       setBookingState({
@@ -94,11 +151,12 @@ export default function BookingForm({ prefilledPrice = null }) {
       router.replace('/booking/price');
 
     } catch (error) {
-      console.error("Navigation Error:", error);
+      console.error("Inquiry/Navigation Error:", error);
+      submitLockRef.current = false;
       toast({ 
         variant: "destructive", 
-        title: "Error", 
-        description: "Could not proceed. Please try again." 
+        title: "Unable to continue", 
+        description: "Your inquiry could not be saved. Please try again." 
       });
     } finally {
       setLoading(false);
