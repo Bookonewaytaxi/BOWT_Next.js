@@ -5,4 +5,3 @@ Disallow: /api/
 Disallow: /booking
 
 Sitemap: https://bookonewaytaxi.in/sitemap.xml
-Sitemap: https://bookonewaytaxi.in/sitemap-cities.xml
