@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, ArrowRight, Loader2, User, Phone } from 'lucide-react';
@@ -118,8 +118,8 @@ export default function BookingForm({ prefilledPrice = null }) {
          travel_date: formData.travel_date
       });
 
-      // IMPORTANT: capture the lead before leaving the page. This runs for every
-      // valid form submission, even when the visitor does not complete a booking.
+      // Capture the lead before leaving the page. This runs for every valid
+      // form submission, even when the visitor does not complete a booking.
       const inquiryResult = await submitInquiry({
         ...formData,
         name: formData.customer_name,
