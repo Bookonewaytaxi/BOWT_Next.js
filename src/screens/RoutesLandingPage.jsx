@@ -11,13 +11,37 @@ import RoutePagination from '@/components/routes/RoutePagination';
 import WhatsAppButton from '@/components/common/WhatsAppButton';
 import RouteBreadcrumb from '@/components/routes/RouteBreadcrumb';
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllActiveRouteOrigins() {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('routes')
+      .select('from_city')
+      .eq('is_active', true)
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 export default function RoutesLandingPage() {
   const [cities, setCities] = useState([]);
   const [popularCities, setPopularCities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const ITEMS_PER_PAGE = 12;
 
   useEffect(() => {
@@ -26,14 +50,9 @@ export default function RoutesLandingPage() {
 
   const fetchRoutesData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
-        .from('routes')
-        .select('from_city, is_active')
-        .eq('is_active', true);
-
-      if (error) throw error;
-
+      const data = await fetchAllActiveRouteOrigins();
       const cityMap = {};
       data.forEach(route => {
         const city = route.from_city;
@@ -46,6 +65,7 @@ export default function RoutesLandingPage() {
       setCities([...cityList].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (err) {
       console.error('Error fetching cities:', err);
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -64,8 +84,8 @@ export default function RoutesLandingPage() {
     <>
       <Head>
         <title>One-Way Taxi Routes | Book Affordable Taxis</title>
-        <meta name="description" content="Explore all one-way taxi routes. Select your pickup city and find affordable taxis to your destination. Best rates guaranteed." />
-        <meta name="keywords" content="one way taxi routes, intercity cab routes, taxi service cities, cab booking india" />
+        <meta name="description" content="Explore all one-way taxi routes. Select your pickup city and find affordable taxis to your destination." />
+        <meta name="keywords" content="one way taxi routes, intercity cab routes, taxi service cities, cab booking India" />
         <link rel="canonical" href="https://bookonewaytaxi.in/routes" />
         <meta property="og:title" content="One-Way Taxi Routes | Book Affordable Taxis" />
         <meta property="og:description" content="Explore all one-way taxi routes. Select your pickup city and find affordable taxis to your destination." />
@@ -92,6 +112,11 @@ export default function RoutesLandingPage() {
 
         <div className="container mx-auto px-4 py-8">
           <RouteBreadcrumb items={[{ label: 'Routes' }]} />
+          {error && (
+            <div className="mb-8 rounded-xl border border-red-900/50 bg-red-950/30 p-5 text-center text-red-300">
+              Unable to load routes right now. Please refresh and try again.
+            </div>
+          )}
           {!searchTerm && (
             <section className="mb-16">
               <div className="flex items-center gap-3 mb-8"><MapPin className="w-6 h-6 text-[#FFD700]" /><h2 className="text-2xl font-bold text-white">Popular Cities</h2></div>
