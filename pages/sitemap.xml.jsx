@@ -16,16 +16,24 @@ export default function SitemapXml() {
   return null;
 }
 
+/**
+ * Dynamic sitemap index for search/AI crawler discovery.
+ * Route sitemap count is derived from the live routes table, so newly
+ * uploaded active routes are included automatically without editing files.
+ * This endpoint does not change page UI or internal-link rendering.
+ */
 export async function getServerSideProps({ res }) {
   try {
     const { count, error } = await supabase
       .from('routes')
       .select('id', { count: 'exact', head: true })
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .not('slug', 'is', null);
 
     if (error) throw error;
 
-    const routeSitemapCount = Math.max(1, Math.ceil((count || 0) / ROUTES_PER_SITEMAP));
+    const routeCount = Number.isFinite(count) ? count : 0;
+    const routeSitemapCount = Math.ceil(routeCount / ROUTES_PER_SITEMAP);
     const now = new Date().toISOString();
 
     const sitemapUrls = [
@@ -34,27 +42,32 @@ export async function getServerSideProps({ res }) {
       ...Array.from(
         { length: routeSitemapCount },
         (_, index) => `${SITE_URL}/sitemap-routes-${index + 1}.xml`
-      )
+      ),
     ];
 
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      sitemapUrls.map((url) =>
-        `  <sitemap>\n    <loc>${xmlEscape(url)}</loc>\n    <lastmod>${now}</lastmod>\n  </sitemap>`
-      ).join('\n') +
-      `\n</sitemapindex>`;
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      sitemapUrls
+        .map(
+          (url) =>
+            `  <sitemap>\n    <loc>${xmlEscape(url)}</loc>\n    <lastmod>${xmlEscape(now)}</lastmod>\n  </sitemap>`
+        )
+        .join('\n') +
+      '\n</sitemapindex>';
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=600');
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=300, s-maxage=300, stale-while-revalidate=600'
+    );
     res.statusCode = 200;
-    res.write(xml);
-    res.end();
+    res.end(xml);
   } catch (error) {
     console.error('[sitemap.xml] Failed to generate live sitemap index:', error);
-    res.statusCode = 500;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.write('Sitemap temporarily unavailable.');
-    res.end();
+    res.statusCode = 500;
+    res.end('Sitemap temporarily unavailable.');
   }
 
   return { props: {} };
