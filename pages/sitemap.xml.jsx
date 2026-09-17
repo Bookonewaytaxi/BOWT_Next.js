@@ -19,9 +19,9 @@ export default function SitemapXml() {
 /**
  * Live sitemap index.
  *
- * The route sitemap count is calculated from the current Supabase routes
- * table, so adding/removing active routes automatically changes the sitemap
- * index. No sitemap file needs to be manually uploaded or edited.
+ * Route sitemap pages are generated from the current Supabase routes table.
+ * New active routes therefore appear automatically without manually creating
+ * or uploading XML files.
  */
 export async function getServerSideProps({ res }) {
   try {
@@ -34,7 +34,7 @@ export async function getServerSideProps({ res }) {
     if (error) throw error;
 
     const routeCount = Number.isFinite(count) ? count : 0;
-    const routeSitemapCount = Math.ceil(routeCount / ROUTES_PER_SITEMAP);
+    const routeSitemapCount = Math.max(1, Math.ceil(routeCount / ROUTES_PER_SITEMAP));
     const now = new Date().toISOString();
 
     const sitemapUrls = [
@@ -42,7 +42,7 @@ export async function getServerSideProps({ res }) {
       `${SITE_URL}/sitemap-cities.xml`,
       ...Array.from(
         { length: routeSitemapCount },
-        (_, index) => `${SITE_URL}/sitemap-routes-${index + 1}.xml`
+        (_, index) => `${SITE_URL}/sitemap/${index + 1}.xml`
       ),
     ];
 
