@@ -25,8 +25,9 @@ export default async function routeSitemap(req, res) {
   try {
     const { data, error } = await supabase
       .from('routes')
-      .select('slug, created_at')
+      .select('slug, updated_at')
       .eq('is_active', true)
+      .not('slug', 'is', null)
       .order('id', { ascending: true })
       .range(from, to);
 
@@ -38,17 +39,24 @@ export default async function routeSitemap(req, res) {
     }
 
     const urls = data
-      .filter((route) => route.slug)
+      .filter((route) => route?.slug)
       .map((route) => {
-        const lastmod = route.created_at ? `<lastmod>${escapeXml(route.created_at)}</lastmod>` : '';
+        const lastmod = route.updated_at
+          ? `<lastmod>${escapeXml(new Date(route.updated_at).toISOString())}</lastmod>`
+          : '';
         return `<url><loc>${escapeXml(`${SITE_URL}/routes/${route.slug}`)}</loc>${lastmod}</url>`;
       })
       .join('');
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Cache-Control', `public, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=${SITEMAP_CACHE_SECONDS}`);
-    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>` +
-      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=${SITEMAP_CACHE_SECONDS}`
+    );
+    res.status(200).send(
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`
+    );
   } catch (error) {
     console.error(`[sitemap/${page}.xml] Failed to generate route sitemap:`, error);
     res.status(500).end();
