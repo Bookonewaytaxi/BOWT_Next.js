@@ -17,6 +17,9 @@ const nextConfig = {
     return [
       { source: '/sitemap.xml', destination: '/api/sitemap.xml' },
       { source: '/sitemap/:page.xml', destination: '/api/sitemap/:page.xml' },
+      // Keep the previous child-sitemap URL working while the index uses the
+      // canonical automated /sitemap/:page.xml route.
+      { source: '/sitemap-routes-:page.xml', destination: '/api/sitemap/:page.xml' },
     ];
   },
 };
