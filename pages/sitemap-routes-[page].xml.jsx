@@ -1,8 +1,8 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
-const ROUTES_PER_SITEMAP = 5000;
+const ROUTES_PER_SITEMAP = 1000;
 const SUPABASE_PAGE_SIZE = 1000;
-const SITE_URL = 'https://bookonewaytaxi.in';
+const SITE_URL = 'https://www.bookonewaytaxi.in';
 
 function xmlEscape(value) {
   return String(value)
@@ -11,33 +11,6 @@ function xmlEscape(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
-}
-
-async function getActiveRoutesForSitemap(pageNumber) {
-  const start = (pageNumber - 1) * ROUTES_PER_SITEMAP;
-  const end = start + ROUTES_PER_SITEMAP - 1;
-  const routes = [];
-
-  for (let from = start; from <= end; from += SUPABASE_PAGE_SIZE) {
-    const to = Math.min(from + SUPABASE_PAGE_SIZE - 1, end);
-
-    const { data, error } = await supabase
-      .from('routes')
-      .select('slug, updated_at')
-      .eq('is_active', true)
-      .not('slug', 'is', null)
-      .order('id', { ascending: true })
-      .range(from, to);
-
-    if (error) throw error;
-
-    const batch = (data || []).filter((route) => route?.slug);
-    routes.push(...batch);
-
-    if (batch.length < to - from + 1) break;
-  }
-
-  return routes;
 }
 
 export default function RoutesSitemapXml() {
@@ -55,9 +28,22 @@ export async function getServerSideProps({ res, params }) {
   }
 
   try {
-    const routes = await getActiveRoutesForSitemap(pageNumber);
+    const from = (pageNumber - 1) * ROUTES_PER_SITEMAP;
+    const to = from + ROUTES_PER_SITEMAP - 1;
 
-    if (!routes.length) {
+    const { data: routes, error } = await supabase
+      .from('routes')
+      .select('slug, updated_at')
+      .eq('is_active', true)
+      .not('slug', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const validRoutes = (routes || []).filter((route) => route?.slug);
+
+    if (!validRoutes.length) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.end('Sitemap page not found.');
@@ -68,7 +54,7 @@ export async function getServerSideProps({ res, params }) {
     const xml =
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-      routes
+      validRoutes
         .map(
           (route) =>
             `  <url>\n    <loc>${xmlEscape(`${SITE_URL}/routes/${route.slug}`)}</loc>\n    <lastmod>${xmlEscape(route.updated_at || fallbackLastmod)}</lastmod>\n  </url>`
@@ -85,7 +71,7 @@ export async function getServerSideProps({ res, params }) {
     res.end(xml);
   } catch (error) {
     console.error(
-      `[sitemap-route-page-${pageNumber}] Failed to generate route sitemap:`,
+      `[sitemap-routes-${pageNumber}.xml] Failed to generate route sitemap:`,
       error
     );
     res.statusCode = 500;
