@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { 
   LayoutDashboard, Map, Plane, FileText, BarChart, LogOut, Bell, 
-  Receipt, ShipWheel as SteeringWheel, Car, Ticket, MessageSquare, Settings, ArrowRight, Menu, X, FileCode, Megaphone
+  Receipt, ShipWheel as SteeringWheel, Car, Ticket, MessageSquare, Settings, ArrowRight, Menu, X, FileCode, Megaphone, Link2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -32,6 +32,7 @@ export default function AdminDashboard() {
     { name: 'Coupons', icon: Ticket },
     { name: 'Vehicles', icon: Car },
     { name: 'SEO Management', icon: BarChart },
+    { name: 'Backlink Automation', icon: Link2, action: () => router.push('/admin/backlinks') },
     { name: 'Sitemap Settings', icon: FileCode, action: () => router.push('/admin/settings/seo/sitemap') },
     { name: 'Marketing & Analytics', icon: Megaphone, action: () => router.push('/admin/settings/marketing-integrations') },
     { name: 'Local Services', icon: Car },
