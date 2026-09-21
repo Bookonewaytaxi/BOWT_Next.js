@@ -2,6 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  async rewrites() {
+    return [
+      {
+        source: '/sitemap-routes-:page.xml',
+        destination: '/api/sitemap-routes/:page',
+      },
+    ];
+  },
+
   async redirects() {
     return [
       { source: '/booking', destination: '/booking/route-selection', permanent: false },
