@@ -6,6 +6,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const BULK_PAGE_SIZE = 1000;
 
 const escapeSearch = (value = '') =>
+  String(value).replace(/[\\%_,()]/g, '\\const escapeSearch = (value = '') =>
   String(value)
     .replace(/\\/g, '\\\\')
     .replace(/%/g, '\\%')
@@ -13,6 +14,8 @@ const escapeSearch = (value = '') =>
     .replace(/,/g, '\\,')
     .replace(/\\(/g, '\\(')
     .replace(/\\)/g, '\\)');
+
+const buildRouteQuery');
 
 const buildRouteQuery = (query, { search = '', status = 'all' } = {}) => {
   let nextQuery = query;
