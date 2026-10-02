@@ -7,6 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { buildCustomerDriverMessage, buildDriverCustomerMessage, openWhatsAppMessage } from '@/utils/bookingWhatsApp';
 
 export default function AssignDriverModal({ isOpen, onClose, booking, onAssignmentComplete }) {
   const { toast } = useToast();
@@ -50,8 +51,10 @@ export default function AssignDriverModal({ isOpen, onClose, booking, onAssignme
     const { data } = await supabase.from('drivers').select('*');
     // Sort so available are first, others below disabled
     const sorted = data?.sort((a, b) => {
-       if (a.status === 'Available' && b.status !== 'Available') return -1;
-       if (a.status !== 'Available' && b.status === 'Available') return 1;
+       const aAvailable = a.status === 'Available' || a.status === 'Active';
+       const bAvailable = b.status === 'Available' || b.status === 'Active';
+       if (aAvailable && !bAvailable) return -1;
+       if (!aAvailable && bAvailable) return 1;
        return 0;
     }) || [];
     setDrivers(sorted);
@@ -115,7 +118,7 @@ export default function AssignDriverModal({ isOpen, onClose, booking, onAssignme
       // If changing driver, we should arguably set previous driver to 'Available' but that logic 
       // is complex without knowing previous ID easily. Skipping for this iteration.
 
-      // 3. Send Email (non-blocking in UI, but good to wait)
+      // 3. Send the existing email notification as a secondary channel.
       const emailPayload = {
         customer_email: booking.email,
         customer_name: booking.name,
@@ -135,7 +138,37 @@ export default function AssignDriverModal({ isOpen, onClose, booking, onAssignme
         console.warn("Email send warning", e);
       }
 
-      toast({ title: "Success", description: `Driver ${isChange ? 'changed' : 'assigned'} successfully.` });
+      // Build both messages from the exact fields saved to the booking.
+      const notifiedBooking = {
+        ...booking,
+        driver_id: driverIdToSave,
+        driver_name: driverDetails.driver_name,
+        driver_phone: driverDetails.driver_mobile_number,
+        driver_car_no: driverDetails.cab_registration_number,
+        driver_details: {
+          ...(booking.driver_details || {}),
+          ...driverDetails
+        }
+      };
+
+      const customerMessage = buildCustomerDriverMessage(notifiedBooking);
+      const driverMessage = buildDriverCustomerMessage(notifiedBooking);
+      const customerOpened = openWhatsAppMessage(notifiedBooking.mobile_number, customerMessage);
+      const driverOpened = openWhatsAppMessage(notifiedBooking.driver_phone, driverMessage);
+
+      if (!customerOpened || !driverOpened) {
+        toast({
+          title: `Driver ${isChange ? 'changed' : 'assigned'}`,
+          description: 'Booking saved. One or both WhatsApp chats could not be opened. Use the booking Communication actions to retry.',
+          duration: 7000
+        });
+      } else {
+        toast({
+          title: `Driver ${isChange ? 'changed' : 'assigned'} successfully`,
+          description: 'Customer and driver WhatsApp messages are ready with the correct booking details. Review and press Send in WhatsApp.',
+          duration: 7000
+        });
+      }
       onAssignmentComplete();
       onClose();
     } catch (error) {
@@ -147,7 +180,7 @@ export default function AssignDriverModal({ isOpen, onClose, booking, onAssignme
   };
 
   const getDriverStatusIndicator = (status) => {
-     if (status === 'Available') return <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>;
+     if (status === 'Available' || status === 'Active') return <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>;
      if (status === 'On Trip') return <span className="h-2 w-2 rounded-full bg-amber-500 mr-2"></span>;
      return <span className="h-2 w-2 rounded-full bg-slate-500 mr-2"></span>;
   };
@@ -212,7 +245,7 @@ export default function AssignDriverModal({ isOpen, onClose, booking, onAssignme
                     </SelectTrigger>
                     <SelectContent>
                        {drivers.map(d => (
-                          <SelectItem key={d.id} value={d.id} disabled={d.status !== 'Available'}>
+                          <SelectItem key={d.id} value={d.id} disabled={d.status !== 'Available' && d.status !== 'Active'}>
                              <div className="flex flex-col text-left">
                                 <span className="font-bold flex items-center">
                                    {getDriverStatusIndicator(d.status)}

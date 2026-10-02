@@ -3,6 +3,7 @@ import {
   Eye, UserPlus, Trash2, MapPin, Calendar, Clock, Phone, Car, MoreHorizontal, FileText, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { buildCustomerDriverMessage, buildDriverCustomerMessage, openWhatsAppMessage } from '@/utils/bookingWhatsApp';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -22,11 +23,12 @@ export default function BookingCard({ booking, onView, onAssignDriver, onDelete 
     return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
   };
 
-  const openWhatsApp = (number, message) => {
-    if (!number) return;
-    const cleanNumber = number.replace(/\D/g, ''); 
-    const formattedNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
-    window.open(`https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  const openCustomerWhatsApp = () => {
+    openWhatsAppMessage(booking.mobile_number, buildCustomerDriverMessage(booking));
+  };
+
+  const openDriverWhatsApp = () => {
+    openWhatsAppMessage(booking.driver_phone, buildDriverCustomerMessage(booking));
   };
 
   return (
@@ -97,9 +99,14 @@ export default function BookingCard({ booking, onView, onAssignDriver, onDelete 
                   <UserPlus className="mr-2 h-4 w-4 text-green-400" /> Assign Driver
                </DropdownMenuItem>
                <DropdownMenuSeparator className="bg-slate-700" />
-               <DropdownMenuItem onClick={() => openWhatsApp(booking.mobile_number, `Hi ${booking.name}, regarding your booking...`)}>
-                  <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp
+               <DropdownMenuItem onClick={openCustomerWhatsApp}>
+                  <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp Customer (Driver Details)
                </DropdownMenuItem>
+               {booking.driver_phone && (
+                  <DropdownMenuItem onClick={openDriverWhatsApp}>
+                     <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp Driver (Customer Details)
+                  </DropdownMenuItem>
+               )}
                <DropdownMenuSeparator className="bg-slate-700" />
                <DropdownMenuItem onClick={() => onDelete(booking)} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete

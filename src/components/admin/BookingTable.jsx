@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { useBills } from '@/hooks/useBills';
+import { buildCustomerDriverMessage, buildDriverCustomerMessage, openWhatsAppMessage } from '@/utils/bookingWhatsApp';
 
 export default function BookingTable({ 
   bookings, 
@@ -111,11 +112,12 @@ export default function BookingTable({
      return `+${clean}`;
   };
 
-  const openWhatsApp = (number, message) => {
-    if (!number) return;
-    const cleanNumber = number.replace(/\D/g, ''); 
-    const formattedNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
-    window.open(`https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  const openCustomerWhatsApp = (booking) => {
+    openWhatsAppMessage(booking.mobile_number, buildCustomerDriverMessage(booking));
+  };
+
+  const openDriverWhatsApp = (booking) => {
+    openWhatsAppMessage(booking.driver_phone, buildDriverCustomerMessage(booking));
   };
 
   return (
@@ -242,7 +244,7 @@ export default function BookingTable({
                         
                         <DropdownMenuLabel className="text-xs text-slate-500 font-normal">Communication</DropdownMenuLabel>
                         <DropdownMenuItem 
-                          onClick={() => openWhatsApp(booking.mobile_number, `Hi ${booking.name}, regarding your booking #${booking.booking_ref_id}...`)}
+                          onClick={() => openCustomerWhatsApp(booking)}
                           className="hover:bg-slate-800 cursor-pointer"
                         >
                           <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WA Customer
@@ -250,7 +252,7 @@ export default function BookingTable({
                         
                         {booking.driver_phone && (
                           <DropdownMenuItem 
-                            onClick={() => openWhatsApp(booking.driver_phone, `New Trip: ${booking.from_city} to ${booking.to_city}...`)}
+                            onClick={() => openDriverWhatsApp(booking)}
                             className="hover:bg-slate-800 cursor-pointer"
                           >
                             <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WA Driver
