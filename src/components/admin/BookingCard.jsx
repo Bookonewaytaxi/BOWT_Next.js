@@ -100,8 +100,13 @@ export default function BookingCard({ booking, onView, onAssignDriver, onDelete 
                </DropdownMenuItem>
                <DropdownMenuSeparator className="bg-slate-700" />
                <DropdownMenuItem onClick={openCustomerWhatsApp}>
-                  <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp
+                  <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp Customer (Driver Details)
                </DropdownMenuItem>
+               {booking.driver_phone && (
+                  <DropdownMenuItem onClick={openDriverWhatsApp}>
+                     <MessageCircle className="mr-2 h-4 w-4 text-green-500" /> WhatsApp Driver (Customer Details)
+                  </DropdownMenuItem>
+               )}
                <DropdownMenuSeparator className="bg-slate-700" />
                <DropdownMenuItem onClick={() => onDelete(booking)} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
