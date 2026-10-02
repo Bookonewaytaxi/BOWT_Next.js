@@ -85,10 +85,24 @@ export default function CouponManagement() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return;
     try {
-      const { error } = await supabase.from('coupons').delete().eq('id', id);
+      const { data, error } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('id', id)
+        .select('id');
+
       if (error) throw error;
+
+      // With RLS, a DELETE can affect zero rows without returning a useful error.
+      // Verify that Supabase actually removed the requested coupon before reporting success.
+      if (!data || data.length === 0) {
+        throw new Error(
+          'Coupon could not be deleted. Please verify the Supabase DELETE policy for authenticated admins.'
+        );
+      }
+
+      setCoupons((current) => current.filter((coupon) => coupon.id !== id));
       toast({ title: "Deleted", description: "Coupon removed successfully" });
-      fetchCoupons();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     }
