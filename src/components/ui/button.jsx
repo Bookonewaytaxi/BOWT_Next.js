@@ -12,12 +12,12 @@ const buttonVariants = cva(
 				destructive:
           'bg-red-600 text-white hover:bg-red-700 shadow-sm',
 				outline:
-          'border-2 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 hover:border-amber-500',
+          'border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:text-slate-900 hover:border-amber-500',
         luxury: 
           'bg-slate-900 text-amber-500 border border-amber-500/30 hover:bg-slate-800 hover:text-amber-400',
 				secondary:
           'bg-slate-100 text-slate-900 hover:bg-slate-200',
-				ghost: 'hover:bg-slate-100 hover:text-slate-900 shadow-none',
+				ghost: 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100 shadow-none',
 				link: 'text-amber-600 underline-offset-4 hover:underline shadow-none',
 			},
 			size: {
