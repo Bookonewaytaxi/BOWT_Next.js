@@ -10,11 +10,13 @@ import { cn } from '@/lib/utils';
 import SmartCityAutocomplete from './SmartCityAutocomplete';
 import { validateInquiryForm } from '@/utils/validateInquiryForm';
 import { trackEvent } from '@/utils/gtm';
+import { useInquiries } from '@/hooks/useInquiries';
 
 export default function BookingForm({ prefilledPrice = null }) {
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { submitInquiry } = useInquiries();
   
   // Form State
   const [formData, setFormData] = useState({
@@ -78,7 +80,17 @@ export default function BookingForm({ prefilledPrice = null }) {
          travel_date: formData.travel_date
       });
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Persist every validated homepage quote search before navigation.
+      // Navigation is blocked if the database write fails, so the lead is not silently lost.
+      const inquiryResult = await submitInquiry({
+        ...formData,
+        status: 'new_inquiry',
+        message: 'Homepage price search'
+      });
+
+      if (!inquiryResult.success) {
+        throw inquiryResult.error || new Error('Could not save your inquiry. Please try again.');
+      }
 
       clearBookingState();
       setBookingState({
