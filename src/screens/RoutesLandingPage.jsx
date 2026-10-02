@@ -14,21 +14,29 @@ import RouteBreadcrumb from '@/components/routes/RouteBreadcrumb';
 const PAGE_SIZE = 1000;
 
 async function fetchAllActiveRouteOrigins() {
+  const { count, error: countError } = await supabase
+    .from('routes')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  if (countError) throw countError;
+  if (!count) return [];
+
+  const pageCount = Math.ceil(count / PAGE_SIZE);
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_, pageIndex) =>
+      supabase
+        .from('routes')
+        .select('from_city')
+        .eq('is_active', true)
+        .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1)
+    )
+  );
+
   const rows = [];
-  let from = 0;
-
-  while (true) {
-    const { data, error } = await supabase
-      .from('routes')
-      .select('from_city')
-      .eq('is_active', true)
-      .range(from, from + PAGE_SIZE - 1);
-
-    if (error) throw error;
-    const page = data || [];
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+  for (const result of pages) {
+    if (result.error) throw result.error;
+    rows.push(...(result.data || []));
   }
 
   return rows;
