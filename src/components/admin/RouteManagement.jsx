@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import RouteImportButton from './routes/RouteImportButton';
 import RouteImportModal from './routes/RouteImportModal';
 import RouteImportReport from './routes/RouteImportReport';
+import RoutePagination from '@/components/routes/RoutePagination';
 import { processRoutesImport } from '@/utils/RouteImportService';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -44,11 +45,14 @@ export default function RouteManagement() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { fetchRoutes, deleteRoute } = useRouteManagement();
+  const { fetchRoutes, fetchAllRoutes, deleteRoute } = useRouteManagement();
   
   const [routes, setRoutes] = useState([]);
-  const [filteredRoutes, setFilteredRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalRoutes, setTotalRoutes] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const ITEMS_PER_PAGE = 50;
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [deleteId, setDeleteId] = useState(null);
@@ -60,41 +64,39 @@ export default function RouteManagement() {
   const [autoFillingSEO, setAutoFillingSEO] = useState(false);
   const [regeneratingContent, setRegeneratingContent] = useState(false);
 
-  const loadRoutes = async () => {
+  const loadRoutes = async (page = currentPage, search = debouncedSearchQuery, status = statusFilter) => {
     setLoading(true);
-    const { success, data } = await fetchRoutes();
+    const { success, data, totalCount } = await fetchRoutes({
+      page,
+      pageSize: ITEMS_PER_PAGE,
+      search,
+      status
+    });
     if (success) {
       setRoutes(data);
-      setFilteredRoutes(data);
+      setTotalRoutes(totalCount);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadRoutes();
-  }, []);
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
-    let result = routes;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(route => 
-        route.from_city.toLowerCase().includes(query) || 
-        route.to_city.toLowerCase().includes(query)
-      );
-    }
-    if (statusFilter !== 'all') {
-      const isActive = statusFilter === 'active';
-      result = result.filter(route => route.is_active === isActive);
-    }
-    setFilteredRoutes(result);
-  }, [searchQuery, statusFilter, routes]);
+    loadRoutes(currentPage, debouncedSearchQuery, statusFilter);
+  }, [currentPage, debouncedSearchQuery, statusFilter]);
 
   const handleDeleteConfirm = async () => {
     if (!deleteId) return;
     const { success, error } = await deleteRoute(deleteId);
     if (success) {
       setRoutes(prev => prev.filter(r => r.id !== deleteId));
+      setTotalRoutes(prev => Math.max(0, prev - 1));
       triggerAutoRegenerateIfEnabled('route_deleted');
       toast({ title: "Route deleted successfully", className: "bg-green-600 text-white" });
     } else {
@@ -112,7 +114,7 @@ export default function RouteManagement() {
       setImportReport(report);
       setIsReportOpen(true);
       if (report.createdCount > 0 || report.updatedCount > 0) {
-        loadRoutes();
+        loadRoutes(currentPage, debouncedSearchQuery, statusFilter);
         triggerAutoRegenerateIfEnabled('bulk_import');
       }
     } catch (error) {
@@ -131,7 +133,9 @@ export default function RouteManagement() {
     
     try {
       // 1. Filter routes that need SEO
-      const routesToUpdate = routes.filter(r => !r.seo_title || !r.seo_description || !r.seo_keywords || r.seo_keywords.length === 0);
+      const { success: bulkSuccess, data: allMatchingRoutes } = await fetchAllRoutes({ search: searchQuery, status: statusFilter });
+      if (!bulkSuccess) return;
+      const routesToUpdate = allMatchingRoutes.filter(r => !r.seo_title || !r.seo_description || !r.seo_keywords || r.seo_keywords.length === 0);
       
       if (routesToUpdate.length === 0) {
         toast({ title: "SEO Up to Date", description: "All routes already have SEO data.", className: "bg-green-600 text-white" });
@@ -167,7 +171,7 @@ export default function RouteManagement() {
 
       toast({ title: "SEO Update Complete", description: `Updated SEO for ${updatedCount} routes.`, className: "bg-green-600 text-white" });
       if (updatedCount > 0) triggerAutoRegenerateIfEnabled('bulk_seo_update');
-      loadRoutes();
+      loadRoutes(currentPage, debouncedSearchQuery, statusFilter);
     } catch (error) {
       console.error("SEO Autofill Error", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to auto-fill SEO data." });
@@ -180,9 +184,11 @@ export default function RouteManagement() {
     setRegeneratingContent(true);
     let updatedCount = 0;
     try {
-      toast({ title: "Regenerating Content", description: `Updating page content for ${routes.length} routes to English...` });
+      toast({ title: "Regenerating Content", description: `Updating page content for all matching routes to English...` });
 
-      for (const route of routes) {
+      const { success: bulkSuccess, data: allMatchingRoutes } = await fetchAllRoutes({ search: searchQuery, status: statusFilter });
+      if (!bulkSuccess) return;
+      for (const route of allMatchingRoutes) {
         const price = route.sedan_price || route.route_price || 0;
         const newContent = generateSEOContent(route.from_city, route.to_city, route.distance_km || '0', price);
 
@@ -196,8 +202,8 @@ export default function RouteManagement() {
         if (!error) updatedCount++;
       }
 
-      toast({ title: "Content Regeneration Complete", description: `Updated ${updatedCount} of ${routes.length} routes to English.`, className: "bg-green-600 text-white" });
-      loadRoutes();
+      toast({ title: "Content Regeneration Complete", description: `Updated ${updatedCount} of ${allMatchingRoutes.length} routes to English.`, className: "bg-green-600 text-white" });
+      loadRoutes(currentPage, debouncedSearchQuery, statusFilter);
     } catch (error) {
       console.error("Content Regeneration Error", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to regenerate content." });
@@ -274,7 +280,7 @@ export default function RouteManagement() {
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         {loading ? (
           <div className="p-12 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-amber-500" /></div>
-        ) : filteredRoutes.length === 0 ? (
+        ) : routes.length === 0 ? (
           <div className="p-12 flex flex-col items-center text-center text-slate-500">
             <MapPin className="w-12 h-12 mb-4 opacity-20" />
             <h3 className="text-lg font-bold text-slate-300">No Routes Found</h3>
@@ -297,7 +303,7 @@ export default function RouteManagement() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredRoutes.map((route) => (
+                {routes.map((route) => (
                   <tr key={route.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                     <td className="p-4 font-medium text-slate-200">{route.from_city}</td>
                     <td className="p-4 font-medium text-slate-200">{route.to_city}</td>
@@ -369,6 +375,15 @@ export default function RouteManagement() {
           </div>
         )}
       </div>
+
+      <RoutePagination
+        currentPage={currentPage}
+        totalPages={Math.max(1, Math.ceil(totalRoutes / ITEMS_PER_PAGE))}
+        onPageChange={setCurrentPage}
+        isLoading={loading}
+        totalItems={totalRoutes}
+        itemsPerPage={ITEMS_PER_PAGE}
+      />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="bg-slate-900 border-slate-800 text-slate-100">
