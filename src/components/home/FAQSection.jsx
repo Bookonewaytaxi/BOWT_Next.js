@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Head from 'next/head';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
@@ -37,26 +36,8 @@ const faqs = [
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState(0);
 
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": faqs.map(item => ({
-      "@type": "Question",
-      "name": item.q,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": item.a
-      }
-    }))
-  };
-
   return (
     <section className="py-20 px-4 bg-black border-t border-slate-900">
-      <Head>
-        <script type="application/ld+json">
-          {JSON.stringify(faqSchema)}
-        </script>
-      </Head>
 
       <div className="container mx-auto max-w-3xl">
         <div className="text-center mb-12">
