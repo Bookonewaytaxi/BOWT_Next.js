@@ -33,24 +33,37 @@ const normalizeCity = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 
 const fetchAllActiveRoutes = async () => {
   const allRoutes = [];
-  let from = 0;
+  const BATCH_SIZE = 8;
+  let offset = 0;
 
+  // Fetch route pages concurrently in small batches instead of waiting for
+  // every 1,000-row request to finish sequentially.
   while (true) {
-    const to = from + PAGE_SIZE - 1;
+    const requests = Array.from({ length: BATCH_SIZE }, (_, index) => {
+      const from = offset + index * PAGE_SIZE;
+      return supabase
+        .from('routes')
+        .select('from_city, to_city')
+        .eq('is_active', true)
+        .range(from, from + PAGE_SIZE - 1);
+    });
 
-    const { data, error } = await supabase
-      .from('routes')
-      .select('from_city, to_city')
-      .eq('is_active', true)
-      .range(from, to);
+    const results = await Promise.all(requests);
+    let reachedEnd = false;
 
-    if (error) throw error;
+    for (let index = 0; index < results.length; index += 1) {
+      const { data, error } = results[index];
+      if (error) throw error;
+      const page = data || [];
+      allRoutes.push(...page);
+      if (page.length < PAGE_SIZE) {
+        reachedEnd = true;
+        break;
+      }
+    }
 
-    const page = data || [];
-    allRoutes.push(...page);
-
-    if (page.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    if (reachedEnd) break;
+    offset += BATCH_SIZE * PAGE_SIZE;
   }
 
   return allRoutes;
