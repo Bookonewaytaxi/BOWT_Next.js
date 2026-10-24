@@ -53,7 +53,10 @@ export default function HomePage() {
              <img 
                src="https://images.unsplash.com/photo-1647871609818-ca43ac657e1d?auto=format&fit=crop&w=1400&q=55" 
                alt="Luxury Taxi Background" 
-               className="w-full h-full object-cover opacity-60 scale-105 animate-[pulse_10s_ease-in-out_infinite]"
+               fetchPriority="high"
+               decoding="async"
+               loading="eager"
+               className="w-full h-full object-cover opacity-60"
              />
           </div>
           
