@@ -17,7 +17,7 @@ export default function SmartCityAutocomplete({
   const [suggestions, setSuggestions] = useState([]);
   const wrapperRef = useRef(null);
   
-  const { getMatchingCities, loading } = useSmartCityAutocomplete();
+  const { getMatchingCities, loadCities, loading } = useSmartCityAutocomplete();
 
   // Sync internal state with prop
   useEffect(() => {
@@ -35,15 +35,18 @@ export default function SmartCityAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const newVal = e.target.value;
     setInputValue(newVal);
     onChange(newVal); // Propagate change immediately
     
     if (newVal.length >= 3) {
-      const matches = getMatchingCities(newVal, excludeCity);
-      setSuggestions(matches);
       setShowSuggestions(true);
+      const cities = await loadCities();
+      // Ignore stale async results if the visitor has typed a newer value.
+      if (newVal === wrapperRef.current?.querySelector('input')?.value) {
+        setSuggestions(getMatchingCities(newVal, excludeCity, cities));
+      }
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -83,11 +86,13 @@ export default function SmartCityAutocomplete({
         type="text"
         value={inputValue}
         onChange={handleInputChange}
-        onFocus={() => {
+        onFocus={async () => {
            if (inputValue.length >= 3) {
-             const matches = getMatchingCities(inputValue, excludeCity);
-             setSuggestions(matches);
              setShowSuggestions(true);
+             const cities = await loadCities();
+             if (inputValue === wrapperRef.current?.querySelector('input')?.value) {
+               setSuggestions(getMatchingCities(inputValue, excludeCity, cities));
+             }
            }
         }}
         disabled={disabled}
