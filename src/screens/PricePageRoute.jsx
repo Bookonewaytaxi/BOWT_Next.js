@@ -84,6 +84,10 @@ export default function PricePageRoute() {
         .ilike('from_city', routeData.from_city)
         .ilike('to_city', routeData.to_city)
         .eq('is_active', true)
+        // Duplicate active route rows should not make maybeSingle() fail.
+        // Match the newest active route record deterministically.
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (apiError) throw apiError;
@@ -141,7 +145,7 @@ export default function PricePageRoute() {
     { ...VEHICLE_TYPES_CONSTANTS.find(v => v.type_key === 'sedan'), price: routePrices.sedan_price },
     { ...VEHICLE_TYPES_CONSTANTS.find(v => v.type_key === 'suv6'), price: routePrices.ertiga_price || routePrices.suv_ertiga_price },
     { ...VEHICLE_TYPES_CONSTANTS.find(v => v.type_key === 'suv7'), price: routePrices.carens_price || routePrices.kia_carens_price },
-    { ...VEHICLE_TYPES_CONSTANTS.find(v => v.type_key === 'crysta'), price: routePrices.innova_crysta_price || routePrices.crysta_price },
+    { ...VEHICLE_TYPES_CONSTANTS.find(v => v.type_key === 'crysta'), price: routePrices.innova_crysta_price || routePrices.innova_price || routePrices.crysta_price },
   ].filter(v => v.price && v.price > 0 && v.id) : [];
 
   if (!routeData.from_city) return null;

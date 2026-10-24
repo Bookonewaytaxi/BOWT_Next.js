@@ -80,16 +80,20 @@ export default function BookingForm({ prefilledPrice = null }) {
          travel_date: formData.travel_date
       });
 
-      // Persist every validated homepage quote search before navigation.
-      // Navigation is blocked if the database write fails, so the lead is not silently lost.
-      const inquiryResult = await submitInquiry({
-        ...formData,
-        status: 'new_inquiry',
-        message: 'Homepage price search'
-      });
+      // Save the lead, but never let an inquiry-write failure block a customer's booking.
+      // The price-page drop-off capture provides a second opportunity to record the inquiry.
+      try {
+        const inquiryResult = await submitInquiry({
+          ...formData,
+          status: 'new_inquiry',
+          message: 'Homepage price search'
+        });
 
-      if (!inquiryResult.success) {
-        throw inquiryResult.error || new Error('Could not save your inquiry. Please try again.');
+        if (!inquiryResult?.success) {
+          console.error('[BookingForm] Inquiry could not be saved; continuing booking flow.', inquiryResult?.error);
+        }
+      } catch (inquiryError) {
+        console.error('[BookingForm] Inquiry save failed; continuing booking flow.', inquiryError);
       }
 
       clearBookingState();
