@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { motion } from 'framer-motion';
 import { Calendar, Clock, ArrowRight, Loader2, User, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { setBookingState, clearBookingState } from '@/lib/bookingState';
@@ -122,12 +121,7 @@ export default function BookingForm({ prefilledPrice = null }) {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.6 }}
-      className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 md:p-8 border-t-4 border-amber-500 relative z-20 flex flex-col gap-5 w-full"
-    >
+    <div className="bg-white/95 rounded-2xl shadow-2xl p-5 md:p-8 border-t-4 border-amber-500 relative z-20 flex flex-col gap-5 w-full">
       <div className="flex justify-between items-center border-b border-slate-100 pb-4">
         <h3 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight">
           {prefilledPrice ? 'Book This Trip' : 'Get One-Way Quote'}
@@ -269,6 +263,6 @@ export default function BookingForm({ prefilledPrice = null }) {
         </Button>
 
       </form>
-    </motion.div>
+    </div>
   );
 }
