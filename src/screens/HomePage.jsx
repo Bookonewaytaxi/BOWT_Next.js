@@ -1,6 +1,5 @@
 import React from 'react';
 import Head from 'next/head';
-import { motion } from 'framer-motion';
 import { Star, ShieldCheck, Clock, CheckCircle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -36,6 +35,7 @@ export default function HomePage() {
         <meta property="og:description" content="No return fare. Fixed transparent pricing. Verified drivers. Instant WhatsApp confirmation. 800+ routes across Gujarat." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://bookonewaytaxi.in" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(homeSchemaGraph) }}
@@ -51,7 +51,7 @@ export default function HomePage() {
              <div className="absolute inset-0 bg-gradient-to-r from-black via-slate-950/90 to-transparent z-10"></div>
              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10"></div>
              <img 
-               src="https://images.unsplash.com/photo-1647871609818-ca43ac657e1d?q=80&w=2070&auto=format&fit=crop" 
+               src="https://images.unsplash.com/photo-1647871609818-ca43ac657e1d?auto=format&fit=crop&w=1400&q=55" 
                alt="Luxury Taxi Background" 
                className="w-full h-full object-cover opacity-60 scale-105 animate-[pulse_10s_ease-in-out_infinite]"
              />
@@ -61,25 +61,15 @@ export default function HomePage() {
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
               
               {/* Left Content - Booking Form (shows first on mobile) */}
-              <motion.div 
-                 initial={{ opacity: 0, x: -50 }} 
-                 animate={{ opacity: 1, x: 0 }} 
-                 transition={{ duration: 0.8, delay: 0.2 }}
-                 className="lg:col-span-5 relative order-1 lg:order-1"
-              >
+              <div className="lg:col-span-5 relative order-1 lg:order-1">
                 <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/20 rounded-full blur-[100px] pointer-events-none"></div>
                 <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-amber-500/20 rounded-full blur-[100px] pointer-events-none"></div>
                 
                 <BookingForm />
-              </motion.div>
+              </div>
 
               {/* Right Content */}
-              <motion.div 
-                initial={{ opacity: 0, y: 30 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.8, ease: "easeOut" }} 
-                className="lg:col-span-7 text-center lg:text-left space-y-8 order-2 lg:order-2"
-              >
+              <div className="lg:col-span-7 text-center lg:text-left space-y-8 order-2 lg:order-2">
                 <div className="inline-flex flex-wrap items-center gap-3 mb-2">
                   <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-sm">
                     <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
@@ -114,7 +104,7 @@ export default function HomePage() {
                       4.8/5 Rating • <span className="text-white font-bold">15,000+ Happy Customers</span>
                    </p>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </section>
