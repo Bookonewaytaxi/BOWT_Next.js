@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 
 // Supabase/PostgREST commonly limits an unbounded select to the first 1,000
@@ -40,62 +40,58 @@ const fetchAllActiveRoutes = async () => {
 };
 
 export function useSmartCityAutocomplete() {
-  const [loading, setLoading] = useState(!cachedCities);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [routes, setRoutes] = useState(cachedRoutes || []);
   const [allCities, setAllCities] = useState(cachedCities || []);
 
-  useEffect(() => {
+  // Do not download thousands of route rows during the initial homepage load.
+  // Fetch city data only when a visitor actually starts using autocomplete.
+  const loadCities = useCallback(async () => {
     if (cachedCities) {
-      setLoading(false);
       setRoutes(cachedRoutes || []);
       setAllCities(cachedCities);
-      return;
+      return cachedCities;
     }
 
     if (!fetchPromise) {
       fetchPromise = fetchAllActiveRoutes();
     }
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
+    try {
+      const data = await fetchPromise;
+      const uniqueCities = new Set();
 
-        const data = await fetchPromise;
-        const uniqueCities = new Set();
+      data.forEach((route) => {
+        const fromCity = normalizeCity(route.from_city);
+        const toCity = normalizeCity(route.to_city);
+        if (fromCity) uniqueCities.add(fromCity);
+        if (toCity) uniqueCities.add(toCity);
+      });
 
-        data.forEach((route) => {
-          const fromCity = normalizeCity(route.from_city);
-          const toCity = normalizeCity(route.to_city);
-
-          if (fromCity) uniqueCities.add(fromCity);
-          if (toCity) uniqueCities.add(toCity);
-        });
-
-        cachedRoutes = data;
-        cachedCities = Array.from(uniqueCities).sort((a, b) =>
-          a.localeCompare(b, undefined, { sensitivity: 'base' })
-        );
-
-        setRoutes(cachedRoutes);
-        setAllCities(cachedCities);
-        setError(null);
-      } catch (err) {
-        // Allow a later mount/retry to fetch again after a transient failure.
-        fetchPromise = null;
-        setError(err);
-        console.error('[SmartCityAutocomplete] Error fetching route cities:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+      cachedRoutes = data;
+      cachedCities = Array.from(uniqueCities).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' })
+      );
+      setRoutes(cachedRoutes);
+      setAllCities(cachedCities);
+      setError(null);
+      return cachedCities;
+    } catch (err) {
+      // Clear the shared promise so a later interaction can retry.
+      fetchPromise = null;
+      setError(err);
+      console.error('[SmartCityAutocomplete] Error fetching route cities:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const getMatchingCities = useCallback((input, excludeCity) => {
     const query = normalizeCity(input);
-    if (query.length < 3) return [];
+    if (query.length < 3 || !allCities.length) return [];
 
     const lowerInput = query.toLocaleLowerCase();
     const lowerExclude = excludeCity
@@ -106,14 +102,7 @@ export function useSmartCityAutocomplete() {
       .filter((city) => {
         const normalizedCity = normalizeCity(city);
         if (!normalizedCity) return false;
-
-        if (
-          lowerExclude &&
-          normalizedCity.toLocaleLowerCase() === lowerExclude
-        ) {
-          return false;
-        }
-
+        if (lowerExclude && normalizedCity.toLocaleLowerCase() === lowerExclude) return false;
         return normalizedCity.toLocaleLowerCase().includes(lowerInput);
       })
       .slice(0, 8);
@@ -129,7 +118,6 @@ export function useSmartCityAutocomplete() {
     routes.forEach((route) => {
       const fromCity = normalizeCity(route.from_city);
       const toCity = normalizeCity(route.to_city);
-
       if (
         fromCity.toLocaleLowerCase() === lowerPickup &&
         toCity &&
@@ -148,6 +136,7 @@ export function useSmartCityAutocomplete() {
     allCities,
     loading,
     error,
+    loadCities,
     getMatchingCities,
     getDropCitiesForPickup
   };
