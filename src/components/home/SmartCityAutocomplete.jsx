@@ -110,7 +110,9 @@ export default function SmartCityAutocomplete({
           "text-base font-medium"
         )}
         placeholder={placeholder}
-        autoComplete="off"
+        autoComplete="new-password"
+        autoCorrect="off"
+        spellCheck={false}
       />
       
       {/* Floating Label */}
