@@ -89,16 +89,16 @@ export function useSmartCityAutocomplete() {
     }
   }, []);
 
-  const getMatchingCities = useCallback((input, excludeCity) => {
+  const getMatchingCities = useCallback((input, excludeCity, citiesSource = allCities) => {
     const query = normalizeCity(input);
-    if (query.length < 3 || !allCities.length) return [];
+    if (query.length < 3 || !citiesSource.length) return [];
 
     const lowerInput = query.toLocaleLowerCase();
     const lowerExclude = excludeCity
       ? normalizeCity(excludeCity).toLocaleLowerCase()
       : null;
 
-    return allCities
+    return citiesSource
       .filter((city) => {
         const normalizedCity = normalizeCity(city);
         if (!normalizedCity) return false;
