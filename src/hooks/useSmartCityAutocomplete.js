@@ -11,8 +11,25 @@ const PAGE_SIZE = 1000;
 let cachedRoutes = null;
 let cachedCities = null;
 let fetchPromise = null;
+const STORAGE_KEY = 'bowt_city_autocomplete_cache_v1';
 
-const normalizeCity = (value) => String(value ?? '').trim().replace(/\\s+/g, ' ');
+const readPersistentCache = () => {
+  if (typeof window === 'undefined') return;
+  if (cachedCities && cachedRoutes) return;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed?.cities) && Array.isArray(parsed?.routes)) {
+      cachedCities = parsed.cities;
+      cachedRoutes = parsed.routes;
+    }
+  } catch {
+    // Ignore stale, blocked, or malformed browser cache.
+  }
+};
+
+const normalizeCity = (value) => String(value ?? '').trim().replace(/\s+/g, ' ');
 
 const fetchAllActiveRoutes = async () => {
   const allRoutes = [];
@@ -40,6 +57,7 @@ const fetchAllActiveRoutes = async () => {
 };
 
 export function useSmartCityAutocomplete() {
+  readPersistentCache();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [routes, setRoutes] = useState(cachedRoutes || []);
@@ -48,8 +66,8 @@ export function useSmartCityAutocomplete() {
   // Do not download thousands of route rows during the initial homepage load.
   // Fetch city data only when a visitor actually starts using autocomplete.
   const loadCities = useCallback(async () => {
-    if (cachedCities) {
-      setRoutes(cachedRoutes || []);
+    if (cachedCities && cachedRoutes) {
+      setRoutes(cachedRoutes);
       setAllCities(cachedCities);
       return cachedCities;
     }
@@ -74,6 +92,14 @@ export function useSmartCityAutocomplete() {
       cachedCities = Array.from(uniqueCities).sort((a, b) =>
         a.localeCompare(b, undefined, { sensitivity: 'base' })
       );
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          routes: cachedRoutes,
+          cities: cachedCities
+        }));
+      } catch {
+        // Storage may be full or disabled; in-memory caching still works.
+      }
       setRoutes(cachedRoutes);
       setAllCities(cachedCities);
       setError(null);
