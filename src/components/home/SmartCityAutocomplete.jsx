@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Loader2, X } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useSmartCityAutocomplete } from '@/hooks/useSmartCityAutocomplete';
@@ -18,6 +18,12 @@ export default function SmartCityAutocomplete({
   const wrapperRef = useRef(null);
   
   const { getMatchingCities, loadCities, loading } = useSmartCityAutocomplete();
+
+  // Warm the shared city cache after the form mounts so first-time typing does not
+  // trigger the first large route-data request. Later visits use localStorage cache.
+  useEffect(() => {
+    loadCities();
+  }, [loadCities]);
 
   // Sync internal state with prop
   useEffect(() => {
@@ -78,7 +84,7 @@ export default function SmartCityAutocomplete({
     <div ref={wrapperRef} className={cn("relative group", className)}>
        {/* Icon */}
        <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-amber-500 transition-colors z-10 pointer-events-none">
-        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
+        <MapPin className="w-5 h-5" />
       </div>
       
       {/* Input */}
@@ -132,14 +138,16 @@ export default function SmartCityAutocomplete({
 
       {/* Suggestions Dropdown */}
       <AnimatePresence>
-        {showSuggestions && suggestions.length > 0 && (
+        {showSuggestions && (suggestions.length > 0 || loading) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className="absolute top-full left-0 w-full mt-2 bg-white rounded-lg shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 divide-y divide-slate-50"
           >
-            {suggestions.map((city) => (
+            {suggestions.length === 0 && loading ? (
+              <div className="px-4 py-3 text-sm text-slate-500">Loading city suggestions…</div>
+            ) : suggestions.map((city) => (
               <div
                 key={city}
                 onClick={() => handleSelect(city)}
