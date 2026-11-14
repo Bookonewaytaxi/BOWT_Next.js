@@ -58,7 +58,7 @@ export default function RouteDetailsPage({
   const pageUrl = route.slug ? `${SITE_URL}/routes/${route.slug}` : SITE_URL;
 
   const seoTitle = route.seo_title || `${from_city} to ${to_city} Taxi Service - Book Now`;
-  const seoDesc = route.seo_description || `Book reliable one-way taxi from ${from_city} to ${to_city}. Distance: ${distance_km || 'Standard'} km. Fares start ₹${startingPrice}.`;
+  const seoDesc = route.seo_description || `Book a one way taxi from ${from_city} to ${to_city}. Call +91 75675 75578 for booking. Toll, permit, border tax and driver allowance included; parking extra.`;
   const seoKeywords = route.seo_keywords && Array.isArray(route.seo_keywords) ? route.seo_keywords.join(', ') : '';
 
   const breadcrumbItems = [
