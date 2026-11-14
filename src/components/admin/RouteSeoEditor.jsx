@@ -10,8 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSeoManagement } from '@/hooks/useSeoManagement';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
 import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
-
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 import 'react-quill/dist/quill.snow.css';
 
@@ -96,9 +94,10 @@ export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel 
                                 <Input 
                                     id="slug" 
                                     value={formData.slug || ''} 
-                                    onChange={(e) => handleChange('slug', e.target.value)} 
+                                    readOnly
+                                    aria-readonly="true"
                                 />
-                                <p className="text-xs text-slate-500">example: mumbai-to-pune-taxi</p>
+                                <p className="text-xs text-slate-500">Protected route URL. SEO editing never changes existing route slugs or indexed URLs.</p>
                             </div>
                             
                             <div className="grid gap-2">
