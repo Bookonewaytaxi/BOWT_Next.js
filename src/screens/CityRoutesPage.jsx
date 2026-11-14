@@ -30,6 +30,24 @@ export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingR
   const totalPages = Math.ceil(combined.length / PAGE_SIZE);
   const visibleRoutes = combined.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const breadcrumbs = [{ label: 'Routes', href: '/routes' }, { label: city, href: `/routes/city/${citySlug || slugify(city)}` }];
+  const citySchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: title,
+    description,
+    url: canonicalUrl,
+    about: { '@type': 'City', name: city },
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: combined.length,
+      itemListElement: combined.slice(0, 100).map((route, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: `${SITE_URL}/routes/${route.slug}`,
+        name: `${route.from_city} to ${route.to_city} Taxi`
+      }))
+    }
+  };
 
   return (
     <>
@@ -43,6 +61,7 @@ export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingR
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Book One Way Taxi" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(citySchema) }} />
       </Head>
       <div className="min-h-screen bg-slate-50 font-sans">
         <Header />
