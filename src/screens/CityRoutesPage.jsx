@@ -14,13 +14,13 @@ import { Button } from '@/components/ui/button';
 const SITE_URL = 'https://www.bookonewaytaxi.in';
 const PAGE_SIZE = 20;
 
-export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingRoutes = [], incomingRoutes = [] }) {
+export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingRoutes = [], incomingRoutes = [], cityProfile = null }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const city = cityName || 'City';
   const canonicalUrl = `${SITE_URL}/routes/city/${citySlug || slugify(city)}`;
   const title = `${city} One Way Taxi Routes | Book One Way Taxi`.slice(0, 60);
-  const description = `Find one way taxi routes from and to ${city}. Compare available destinations and book with Book One Way Taxi. Call +91 75675 75578.`.slice(0, 160);
+  const description = `Find one way taxi routes from and to ${city}. Compare destinations and book with Book One Way Taxi. Call +91 75675 75578. Parking extra.`.slice(0, 160);
   const filteredOutgoing = useMemo(() => outgoingRoutes.filter((route) => (route.to_city || '').toLowerCase().includes(searchTerm.toLowerCase())), [outgoingRoutes, searchTerm]);
   const filteredIncoming = useMemo(() => incomingRoutes.filter((route) => (route.from_city || '').toLowerCase().includes(searchTerm.toLowerCase())), [incomingRoutes, searchTerm]);
   const combined = useMemo(() => [
@@ -78,7 +78,8 @@ export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingR
           <Breadcrumb items={breadcrumbs} />
           <section className="my-8 rounded-xl bg-white p-6 shadow-sm border border-slate-100">
             <h2 className="text-xl font-bold text-slate-900 mb-2">Taxi routes to and from {city}</h2>
-            <p className="text-slate-600">Explore the available one-way taxi connections where {city} is the pickup or destination city. Each route opens its own route and fare details. The fare shown on the route page is the current fare recorded for that route; parking is extra.</p>
+            {cityProfile?.image_url && <img src={cityProfile.image_url} alt={`${city} city travel`} className="w-full max-h-64 object-cover rounded-lg mb-4" loading="lazy" />}
+            {cityProfile?.description ? <div className="text-slate-600 whitespace-pre-line">{cityProfile.description}</div> : <p className="text-slate-600">Explore the available one-way taxi connections where {city} is the pickup or destination city. Each route opens its own route and fare details. The fare shown on the route page is the current fare recorded for that route; parking is extra.</p>}
           </section>
           {visibleRoutes.length ? (
             <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 shadow-sm overflow-hidden">
