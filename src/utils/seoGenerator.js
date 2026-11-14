@@ -4,17 +4,19 @@ export const generateSlug = (fromCity, toCity) =>
   `${clean(fromCity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-to-${clean(toCity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-taxi`.replace(/-+/g, '-').replace(/^-|-$/g, '');
 
 export const generateMetaTitle = (fromCity, toCity) =>
-  `${clean(fromCity)} to ${clean(toCity)} One Way Taxi | Book One Way Taxi`.slice(0, 60);
+  ` ${clean(fromCity)} to ${clean(toCity)} One Way Taxi | Book One Way Taxi`.trim().slice(0, 60);
 
 export const generateMetaDescription = (fromCity, toCity, distance, price) => {
-  const route = `${clean(fromCity)} to ${clean(toCity)}`;
-  const fare = Number(price) > 0 ? ` Fares from ₹${Number(price).toLocaleString('en-IN')}.` : '';
-  const km = Number(distance) > 0 ? ` Approx. ${Number(distance)} km.` : '';
-  const base = `Book a one way taxi from ${route}.${fare}${km} Call +91 75675 75578 to check availability and book your cab.`;
-  if (base.length >= 150 && base.length <= 160) return base;
-  if (base.length > 160) return base.slice(0, 160).replace(/\s+\S*$/, '').replace(/[.,;:]?$/, '.');
-  const suffix = ' Fixed route fares; parking extra.';
-  return (base + suffix).slice(0, 160);
+  const route = `${clean(fromCity)} to ${clean(toCity)} one way taxi.`;
+  const phone = 'Call +91 75675 75578 for booking.';
+  const inclusions = 'Toll, permit, border tax and driver allowance included; parking extra.';
+  const fare = Number(price) > 0 ? ` Fare from ₹${Number(price).toLocaleString('en-IN')}.` : '';
+  const distanceText = Number(distance) > 0 ? ` Approx. ${Number(distance)} km.` : '';
+  let description = `${route} ${fare}${distanceText} ${phone} ${inclusions}`.replace(/\s+/g, ' ').trim();
+  if (description.length > 160) description = `${route} ${phone} ${inclusions}`.replace(/\s+/g, ' ').trim();
+  if (description.length > 160) description = `${route} ${phone}`.replace(/\s+/g, ' ').trim();
+  if (description.length < 140) description = `${description} Book your cab today.`.slice(0, 160);
+  return description;
 };
 
 export const generateH1Heading = (fromCity, toCity) =>
