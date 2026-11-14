@@ -61,12 +61,19 @@ export async function getStaticProps({ params }) {
     }
     if (!cityName) return { notFound: true, revalidate: 3600 };
 
+    const { data: cityProfile } = await supabase
+      .from('city_profiles')
+      .select('city_name, state, description, image_url')
+      .eq('city_name', cityName)
+      .eq('is_active', true)
+      .maybeSingle();
+
     const [outgoingRoutes, incomingRoutes] = await Promise.all([
       fetchCityRoutes('from_city', cityName),
       fetchCityRoutes('to_city', cityName)
     ]);
     return {
-      props: { cityName, citySlug, outgoingRoutes, incomingRoutes },
+      props: { cityName, citySlug, outgoingRoutes, incomingRoutes, cityProfile: cityProfile || null },
       revalidate: 3600
     };
   } catch (error) {
