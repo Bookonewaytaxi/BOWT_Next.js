@@ -47,6 +47,7 @@ export const getRouteBySlug = async (slug) => {
         seo_keywords,
         seo_content,
         seo_content_language,
+        content_validation_status,
         
         created_at
       `)
