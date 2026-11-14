@@ -82,8 +82,9 @@ export default function RouteDetailsPage({
     faqs,
   });
 
+  const hasPublishedSeoContent = route.content_validation_status !== 'draft' && Boolean(route.seo_content);
   const sections = getRouteSectionAvailability({
-    route,
+    route: hasPublishedSeoContent ? route : { ...route, seo_content: null },
     fromCityProfile: cityProfiles.fromProfile,
     toCityProfile: cityProfiles.toProfile,
     relatedRoutes,
@@ -145,7 +146,7 @@ export default function RouteDetailsPage({
               <RelatedRoutesSection fromCity={from_city} relatedRoutes={relatedRoutes} />
             )}
             {isAvailable('faq') && <RouteFAQSection faqs={faqs} />}
-            {isAvailable('travel-guide') && route.content_validation_status !== 'draft' && (
+            {isAvailable('travel-guide') && hasPublishedSeoContent && (
               <SEOContentDisplay content={route.seo_content} route={route} startingPrice={startingPrice} />
             )}
             <InternalLinkHub
