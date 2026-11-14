@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Search, Edit, RefreshCw, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Wand2 } from 'lucide-react';
+import { Search, Edit, RefreshCw, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Wand2, ClipboardCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,8 @@ export default function RouteSeoDashboard() {
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState([]);
   const [notice, setNotice] = useState('');
+  const [audit, setAudit] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
   const router = useRouter();
 
   const fetchRoutes = useCallback(async () => {
@@ -113,6 +115,52 @@ export default function RouteSeoDashboard() {
     fetchRoutes();
   };
 
+  const runFullAudit = async () => {
+    setAuditLoading(true);
+    setNotice('');
+    try {
+      const allRoutes = [];
+      for (let offset = 0; offset < 30000; offset += 1000) {
+        const { data, error } = await supabase.from('routes')
+          .select('id,from_city,to_city,slug,seo_title,seo_description,seo_content,content_validation_status')
+          .eq('is_active', true)
+          .range(offset, offset + 999);
+        if (error) throw error;
+        allRoutes.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      const titleCounts = new Map();
+      const descriptionCounts = new Map();
+      allRoutes.forEach((route) => {
+        const title = String(route.seo_title || '').trim().toLowerCase();
+        const description = String(route.seo_description || '').trim().toLowerCase();
+        if (title) titleCounts.set(title, (titleCounts.get(title) || 0) + 1);
+        if (description) descriptionCounts.set(description, (descriptionCounts.get(description) || 0) + 1);
+      });
+      const duplicateTitles = [...titleCounts.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]);
+      const duplicateDescriptions = [...descriptionCounts.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]);
+      const result = {
+        total: allRoutes.length,
+        missingTitle: allRoutes.filter((r) => !r.seo_title).length,
+        missingDescription: allRoutes.filter((r) => !r.seo_description).length,
+        missingPhone: allRoutes.filter((r) => r.seo_description && !r.seo_description.includes('+91 75675 75578')).length,
+        invalidDescriptionLength: allRoutes.filter((r) => r.seo_description && (r.seo_description.length < 140 || r.seo_description.length > 160)).length,
+        missingContent: allRoutes.filter((r) => !r.seo_content || !r.seo_content.trim()).length,
+        draftContent: allRoutes.filter((r) => r.content_validation_status === 'draft').length,
+        duplicateTitles,
+        duplicateDescriptions,
+        scannedAt: new Date().toLocaleString()
+      };
+      setAudit(result);
+      setNotice(`Full read-only audit completed across ${result.total.toLocaleString('en-IN')} active routes.`);
+    } catch (error) {
+      console.error('[SEO Dashboard] Full audit failed:', error);
+      setNotice(error.message || 'Full route audit failed.');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   const toggleSelected = (id) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const allVisibleSelected = routes.length > 0 && routes.every((route) => selected.includes(route.id));
 
@@ -122,6 +170,7 @@ export default function RouteSeoDashboard() {
         <div><h1 className="text-3xl font-bold text-white">On-Page SEO Management</h1><p className="text-slate-400 mt-1">Manage route metadata and content without changing route URLs, fares or bookings.</p></div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="border-slate-700 text-slate-200" onClick={fetchRoutes} disabled={loading}><RefreshCw className="w-4 h-4 mr-2" /> Refresh</Button>
+          <Button variant="outline" className="border-emerald-700 text-emerald-300" onClick={runFullAudit} disabled={auditLoading}><ClipboardCheck className="w-4 h-4 mr-2" /> {auditLoading ? 'Auditing all routes…' : 'Run full audit'}</Button>
           <Button className="bg-amber-500 text-slate-950 hover:bg-amber-400" onClick={bulkGenerate} disabled={busy || selected.length === 0}><Wand2 className="w-4 h-4 mr-2" /> Generate missing ({selected.length})</Button>
         </div>
       </div>
@@ -133,6 +182,26 @@ export default function RouteSeoDashboard() {
       </div>
 
       {notice && <div className="mb-4 rounded-lg border border-amber-700/50 bg-amber-950/40 p-3 text-sm text-amber-200">{notice}</div>}
+      {audit && <section className="mb-6 rounded-xl border border-emerald-900 bg-slate-900 p-4">
+        <div className="flex flex-wrap justify-between gap-2 mb-3"><h2 className="font-bold text-white">Full route SEO audit</h2><span className="text-xs text-slate-500">Read-only · {audit.scannedAt}</span></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            ['Active routes scanned', audit.total],
+            ['Missing titles', audit.missingTitle],
+            ['Missing descriptions', audit.missingDescription],
+            ['Descriptions missing phone', audit.missingPhone],
+            ['Description length issues', audit.invalidDescriptionLength],
+            ['Missing route content', audit.missingContent],
+            ['Draft content not published', audit.draftContent],
+            ['Duplicate title groups', audit.duplicateTitles.length],
+            ['Duplicate description groups', audit.duplicateDescriptions.length]
+          ].map(([label, value]) => <div key={label} className="rounded-lg bg-slate-950 p-3"><p className="text-xs text-slate-400">{label}</p><p className="text-xl font-bold text-white">{Number(value).toLocaleString('en-IN')}</p></div>)}
+        </div>
+        {(audit.duplicateTitles.length > 0 || audit.duplicateDescriptions.length > 0) && <div className="grid md:grid-cols-2 gap-4 mt-4">
+          <div><h3 className="text-sm font-semibold text-amber-300 mb-2">Most repeated titles</h3>{audit.duplicateTitles.slice(0,5).map(([value,count]) => <p key={value} className="text-xs text-slate-300 border-b border-slate-800 py-2">{count}× · {value}</p>)}</div>
+          <div><h3 className="text-sm font-semibold text-amber-300 mb-2">Most repeated descriptions</h3>{audit.duplicateDescriptions.slice(0,5).map(([value,count]) => <p key={value} className="text-xs text-slate-300 border-b border-slate-800 py-2">{count}× · {value.slice(0,180)}</p>)}</div>
+        </div>}
+      </section>}
 
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /><Input placeholder="Search pickup, drop or slug..." className="pl-9 bg-slate-900 border-slate-700 text-white" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
