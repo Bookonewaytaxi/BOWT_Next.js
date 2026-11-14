@@ -8,9 +8,7 @@ export const calculateSeoScore = (data = {}) => {
   const content = String(data.long_form_content || data.seo_content || '');
   const plainContent = stripHtml(content);
   const words = plainContent ? plainContent.split(/\s+/).length : 0;
-  const lowerContent = content.toLowerCase();
   const faqs = Array.isArray(data.faq_section) ? data.faq_section : [];
-  const secondary = Array.isArray(data.secondary_keywords) ? data.secondary_keywords.filter(Boolean) : [];
   const breakdown = {
     metadata: { score: 0, max: 30, issues: [] },
     keywordRelevance: { score: 0, max: 20, issues: [] },
