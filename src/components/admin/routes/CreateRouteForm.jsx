@@ -19,6 +19,7 @@ import {
   generateKeywords
 } from '@/utils/seoGeneratorService';
 import { triggerAutoRegenerateIfEnabled } from '@/utils/sitemapUtils';
+import { syncCityProfilesForRoutes } from '@/utils/cityProfileSync';
 
 export default function CreateRouteForm() {
   const router = useRouter();
@@ -196,6 +197,14 @@ export default function CreateRouteForm() {
       });
 
       if (error) throw error;
+
+      // Provision both endpoint city profiles; preserve the saved route if this optional SEO step fails.
+      try {
+        await syncCityProfilesForRoutes([{ from_city: formData.from_city, to_city: formData.to_city }]);
+      } catch (citySyncError) {
+        console.error('[City SEO] Route saved but city profile sync failed:', citySyncError);
+        toast({ variant: 'destructive', title: 'Route saved; city SEO profile needs retry', description: citySyncError.message || 'Open SEO Management → City SEO and retry profile sync.' });
+      }
 
       // Non-blocking — never delays the success toast/redirect below.
       triggerAutoRegenerateIfEnabled('route_created');
