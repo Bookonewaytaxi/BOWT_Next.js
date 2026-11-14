@@ -14,23 +14,25 @@ export const useSeoManagement = () => {
     if (!routeId) return { success: false, error: new Error('Route ID is required') };
     setLoading(true);
     try {
-      const [{ data: route, error: routeError }, { data: faqs, error: faqError }] = await Promise.all([
+      const [{ data: route, error: routeError }, { data: faqs, error: faqError }, { data: metadata, error: metadataError }] = await Promise.all([
         supabase.from('routes').select(ROUTE_SEO_COLUMNS).eq('id', routeId).maybeSingle(),
-        supabase.from('route_faqs').select('id, category, question, answer, priority, status').eq('route_id', routeId).order('priority', { ascending: true })
+        supabase.from('route_faqs').select('id, category, question, answer, priority, status').eq('route_id', routeId).order('priority', { ascending: true }),
+        supabase.from('seo_metadata').select('id, meta_title, meta_description, keywords, focus_keyword, slug').eq('page_type', 'route').eq('page_id', routeId).maybeSingle()
       ]);
       if (routeError) throw routeError;
       if (faqError) throw faqError;
+      if (metadataError) throw metadataError;
       if (!route) throw new Error('Route not found');
       return {
         success: true,
         data: {
           ...route,
-          meta_title: route.seo_title || '',
-          meta_description: route.seo_description || '',
-          secondary_keywords: route.seo_keywords || [],
+          meta_title: route.seo_title || metadata?.meta_title || '',
+          meta_description: route.seo_description || metadata?.meta_description || '',
+          secondary_keywords: route.seo_keywords?.length ? route.seo_keywords : (metadata?.keywords || []),
+          focus_keyword: metadata?.focus_keyword || `${route.from_city} to ${route.to_city} one way taxi`,
           long_form_content: route.seo_content || '',
           h1_heading: `One Way Taxi from ${route.from_city} to ${route.to_city}`,
-          focus_keyword: `${route.from_city} to ${route.to_city} one way taxi`,
           faq_section: faqs || []
         }
       };
@@ -93,6 +95,18 @@ export const useSeoManagement = () => {
         const { error: deleteError } = await supabase.from('route_faqs').delete().eq('route_id', routeId).in('id', staleIds);
         if (deleteError) throw deleteError;
       }
+
+      const { error: metadataError } = await supabase.from('seo_metadata').upsert({
+        page_type: 'route',
+        page_id: routeId,
+        meta_title: routeUpdate.seo_title,
+        meta_description: routeUpdate.seo_description,
+        keywords: routeUpdate.seo_keywords,
+        focus_keyword: String(seoData.focus_keyword || '').trim(),
+        slug: savedRoute.slug,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'page_type,page_id' });
+      if (metadataError) throw metadataError;
 
       const score = calculateSeoScore({ ...seoData, slug: savedRoute.slug });
       toast({ title: 'SEO saved', description: `Route SEO saved. On-page score: ${score.totalScore}/100`, className: 'bg-green-600 text-white' });
