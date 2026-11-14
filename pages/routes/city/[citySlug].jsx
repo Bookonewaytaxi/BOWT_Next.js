@@ -55,9 +55,18 @@ export async function getStaticProps({ params }) {
       cityName = match || null;
     }
     if (!cityName) {
-      const { data: rows, error: rowsError } = await supabase.from('routes').select('from_city,to_city').eq('is_active', true).limit(10000);
-      if (rowsError) throw rowsError;
-      cityName = (rows || []).flatMap((row) => [row.from_city, row.to_city]).find((name) => slugify(name) === citySlug) || null;
+      // Complete fallback scan across the full route table, so cities appearing
+      // after the first 10,000 records are not silently treated as missing.
+      for (let offset = 0; offset < 20000 && !cityName; offset += PAGE_SIZE) {
+        const { data: rows, error: rowsError } = await supabase
+          .from('routes')
+          .select('from_city,to_city')
+          .eq('is_active', true)
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (rowsError) throw rowsError;
+        cityName = (rows || []).flatMap((row) => [row.from_city, row.to_city]).find((name) => slugify(name) === citySlug) || null;
+        if (!rows || rows.length < PAGE_SIZE) break;
+      }
     }
     if (!cityName) return { notFound: true, revalidate: 3600 };
 
