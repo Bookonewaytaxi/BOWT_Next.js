@@ -20,7 +20,8 @@ export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingR
   const city = cityName || 'City';
   const canonicalUrl = `${SITE_URL}/routes/city/${citySlug || slugify(city)}`;
   const title = `${city} One Way Taxi Routes | Book One Way Taxi`.slice(0, 60);
-  const description = `Find one way taxi routes from and to ${city}. Compare destinations and book with Book One Way Taxi. Call +91 75675 75578. Parking extra.`.slice(0, 160);
+  const description = `Book one way taxi from and to ${city}. View active routes, compare fixed fares and book with Book One Way Taxi. Call +91 75675 75578.`.slice(0, 160);
+  const cityIntroduction = String(cityProfile?.description || '').trim();
   const filteredOutgoing = useMemo(() => outgoingRoutes.filter((route) => (route.to_city || '').toLowerCase().includes(searchTerm.toLowerCase())), [outgoingRoutes, searchTerm]);
   const filteredIncoming = useMemo(() => incomingRoutes.filter((route) => (route.from_city || '').toLowerCase().includes(searchTerm.toLowerCase())), [incomingRoutes, searchTerm]);
   const combined = useMemo(() => [
@@ -69,7 +70,7 @@ export default function CityRoutesPage({ cityName = '', citySlug = '', outgoingR
           <div className="container mx-auto px-4">
             <div className="mb-6"><Link href="/routes"><Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800 pl-0 gap-2"><ArrowLeft className="w-4 h-4" /> Back to All Cities</Button></Link></div>
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div><h1 className="text-3xl md:text-5xl font-black text-white mb-2">One Way Taxi Routes for <span className="text-amber-500">{city}</span></h1><p className="text-slate-400 text-lg">{combined.length} active route connections</p></div>
+              <div><h1 className="text-3xl md:text-5xl font-black text-white mb-2">One Way Taxi Routes for <span className="text-amber-500">{city}</span></h1><p className="text-slate-400 text-lg">{combined.length} active route connections</p>{cityIntroduction && <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{cityIntroduction}</p>}</div>
               <div className="w-full md:w-96"><CitySearchBox onSearch={(term) => { setSearchTerm(term); setCurrentPage(1); }} placeholder="Search connected city..." /></div>
             </div>
           </div>
