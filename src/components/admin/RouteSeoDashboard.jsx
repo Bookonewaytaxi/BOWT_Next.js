@@ -47,7 +47,15 @@ export default function RouteSeoDashboard() {
       const from = (page - 1) * PAGE_SIZE;
       const { data, error, count } = await query.order('from_city', { ascending: true }).order('to_city', { ascending: true }).range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
-      setRoutes(data || []);
+      const routeRows = data || [];
+      const routeIds = routeRows.map((route) => route.id);
+      let faqMap = {};
+      if (routeIds.length) {
+        const { data: faqRows, error: faqError } = await supabase.from('route_faqs').select('route_id, question, answer').in('route_id', routeIds).eq('status', 'approved');
+        if (faqError) throw faqError;
+        faqMap = (faqRows || []).reduce((map, faq) => { (map[faq.route_id] ||= []).push(faq); return map; }, {});
+      }
+      setRoutes(routeRows.map((route) => ({ ...route, faq_section: faqMap[route.id] || [] })));
       setTotal(count || 0);
       setSelected([]);
     } catch (error) {
@@ -72,7 +80,7 @@ export default function RouteSeoDashboard() {
   const bulkGenerate = async () => {
     const targets = routes.filter((route) => selected.includes(route.id));
     if (!targets.length) return;
-    if (!window.confirm(`Generate SEO fields for ${targets.length} selected routes? Existing non-empty titles, descriptions and content will be preserved. No route URL or fare will be changed.`)) return;
+    if (!window.confirm(`Generate SEO fields for ${targets.length} selected routes? Valid existing SEO fields will be preserved; missing or invalid metadata will be repaired. No route URL or fare will be changed.`)) return;
     setBusy(true);
     setNotice('');
     let updated = 0, failed = 0;
@@ -80,8 +88,8 @@ export default function RouteSeoDashboard() {
       try {
         const generated = generateSeoForRoute(route);
         const patch = {};
-        if (!route.seo_title) patch.seo_title = generated.meta_title;
-        if (!route.seo_description) patch.seo_description = generated.meta_description;
+        if (!route.seo_title || route.seo_title.length > 60) patch.seo_title = generated.meta_title;
+        if (!route.seo_description || !route.seo_description.includes('+91 75675 75578') || route.seo_description.length < 140 || route.seo_description.length > 160) patch.seo_description = generated.meta_description;
         if (!route.seo_keywords?.length) patch.seo_keywords = generated.secondary_keywords;
         if (!route.seo_content) {
           patch.seo_content = generated.long_form_content;
@@ -142,7 +150,7 @@ export default function RouteSeoDashboard() {
               {loading ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">Loading route SEO data…</td></tr> :
                 routes.length === 0 ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">No active routes match this filter.</td></tr> :
                 routes.map((route) => {
-                  const score = calculateSeoScore({ slug: route.slug, meta_title: route.seo_title || '', meta_description: route.seo_description || '', focus_keyword: `${route.from_city} to ${route.to_city} one way taxi`, h1_heading: `One Way Taxi from ${route.from_city} to ${route.to_city}`, faq_section: [], long_form_content: route.seo_content || '', secondary_keywords: route.seo_keywords || [] }).totalScore;
+                  const score = calculateSeoScore({ slug: route.slug, meta_title: route.seo_title || '', meta_description: route.seo_description || '', focus_keyword: `${route.from_city} to ${route.to_city} one way taxi`, h1_heading: `One Way Taxi from ${route.from_city} to ${route.to_city}`, faq_section: route.faq_section || [], long_form_content: route.seo_content || '', secondary_keywords: route.seo_keywords || [] }).totalScore;
                   const issues = getSeoIssues(route);
                   return <tr key={route.id} className="hover:bg-slate-800/50">
                     <td className="p-4"><input aria-label={`Select ${route.from_city} to ${route.to_city}`} type="checkbox" checked={selected.includes(route.id)} onChange={() => toggleSelected(route.id)} /></td>
@@ -161,7 +169,7 @@ export default function RouteSeoDashboard() {
           <div className="flex gap-2"><Button size="sm" variant="outline" className="border-slate-700" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="w-4 h-4" /> Previous</Button><Button size="sm" variant="outline" className="border-slate-700" disabled={page >= metrics.pageCount || loading} onClick={() => setPage((p) => p + 1)}>Next <ChevronRight className="w-4 h-4" /></Button></div>
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">Bulk generation fills only empty SEO fields. It does not modify route slugs, route fares, vehicle pricing, bookings, customer records or database permissions. Automatically generated travel copy remains a draft and should be reviewed before publication.</p>
+      <p className="mt-3 text-xs text-slate-500">Bulk generation fills empty content and repairs missing or invalid meta title/description fields. It does not modify route slugs, route fares, vehicle pricing, bookings, customer records or database permissions. Automatically generated travel copy remains a draft and should be reviewed before publication.</p>
     </div>
   );
 }
