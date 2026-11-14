@@ -4,7 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { generateSeoForRoute } from '@/utils/seoGenerator';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
 
-const ROUTE_SEO_COLUMNS = 'id, from_city, to_city, slug, distance_km, sedan_price, seo_title, seo_description, seo_keywords, seo_content, updated_at';
+const ROUTE_SEO_COLUMNS = 'id, from_city, to_city, slug, distance_km, sedan_price, suv_ertiga_price, ertiga_price, kia_carens_price, carens_price, innova_crysta_price, crysta_price, route_price, seo_title, seo_description, seo_keywords, seo_content, updated_at';
 
 export const useSeoManagement = () => {
   const [loading, setLoading] = useState(false);
