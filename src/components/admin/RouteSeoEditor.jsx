@@ -10,8 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSeoManagement } from '@/hooks/useSeoManagement';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
 import dynamic from 'next/dynamic';
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 import 'react-quill/dist/quill.snow.css';
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
 export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState(initialData || {});
