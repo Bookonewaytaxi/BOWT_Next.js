@@ -1,4 +1,4 @@
-const SITE_URL = 'https://bookonewaytaxi.in';
+const SITE_URL = 'https://www.bookonewaytaxi.in';
 
 function xmlEscape(value) {
   return String(value)
