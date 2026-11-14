@@ -145,7 +145,7 @@ export default function RouteDetailsPage({
               <RelatedRoutesSection fromCity={from_city} relatedRoutes={relatedRoutes} />
             )}
             {isAvailable('faq') && <RouteFAQSection faqs={faqs} />}
-            {isAvailable('travel-guide') && (
+            {isAvailable('travel-guide') && route.content_validation_status !== 'draft' && (
               <SEOContentDisplay content={route.seo_content} route={route} startingPrice={startingPrice} />
             )}
             <InternalLinkHub
