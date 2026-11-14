@@ -142,7 +142,7 @@ export default function RouteSeoDashboard() {
               {loading ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">Loading route SEO data…</td></tr> :
                 routes.length === 0 ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">No active routes match this filter.</td></tr> :
                 routes.map((route) => {
-                  const score = calculateSeoScore({ slug: route.slug, meta_title: route.seo_title || '', meta_description: route.seo_description || '', focus_keyword: `${route.from_city} to ${route.to_city} taxi`, long_form_content: route.seo_content || '', secondary_keywords: route.seo_keywords || [] }).totalScore;
+                  const score = calculateSeoScore({ slug: route.slug, meta_title: route.seo_title || '', meta_description: route.seo_description || '', focus_keyword: `${route.from_city} to ${route.to_city} one way taxi`, h1_heading: `One Way Taxi from ${route.from_city} to ${route.to_city}`, faq_section: [], long_form_content: route.seo_content || '', secondary_keywords: route.seo_keywords || [] }).totalScore;
                   const issues = getSeoIssues(route);
                   return <tr key={route.id} className="hover:bg-slate-800/50">
                     <td className="p-4"><input aria-label={`Select ${route.from_city} to ${route.to_city}`} type="checkbox" checked={selected.includes(route.id)} onChange={() => toggleSelected(route.id)} /></td>
