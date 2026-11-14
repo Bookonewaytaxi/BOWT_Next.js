@@ -15,8 +15,9 @@ export const generateMetaDescription = (fromCity, toCity, distance, price) => {
   let description = `${route} ${fare}${distanceText} ${phone} ${inclusions}`.replace(/\s+/g, ' ').trim();
   if (description.length > 160) description = `${route} ${phone} ${inclusions}`.replace(/\s+/g, ' ').trim();
   if (description.length > 160) description = `${route} ${phone}`.replace(/\s+/g, ' ').trim();
-  if (description.length < 140) description = `${description} Book your cab today.`.slice(0, 160);
-  return description;
+  if (description.length < 140) description = `${description} Book your cab today.`;
+  if (description.length < 140) description = `${description} Check the fare before booking.`;
+  return description.slice(0, 160);
 };
 
 export const generateH1Heading = (fromCity, toCity) =>
