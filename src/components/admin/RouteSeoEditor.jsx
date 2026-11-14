@@ -267,6 +267,18 @@ export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel 
                                             onChange={(e) => handleJsonChange('faq_section', i, e.target.value, 'answer')}
                                         />
                                     </div>
+                                    <div className="grid gap-2 mt-3">
+                                        <Label>FAQ publication status</Label>
+                                        <select
+                                            value={faq.status || 'draft'}
+                                            onChange={(e) => handleJsonChange('faq_section', i, e.target.value, 'status')}
+                                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                                        >
+                                            <option value="draft">Draft — not visible publicly</option>
+                                            <option value="approved">Approved — publish on route page</option>
+                                            <option value="rejected">Rejected — do not publish</option>
+                                        </select>
+                                    </div>
                                     <Button 
                                         variant="ghost" 
                                         className="text-red-500 text-xs mt-2"
