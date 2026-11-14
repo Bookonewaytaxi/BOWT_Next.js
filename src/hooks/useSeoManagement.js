@@ -4,23 +4,38 @@ import { useToast } from '@/components/ui/use-toast';
 import { generateSeoForRoute } from '@/utils/seoGenerator';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
 
+const ROUTE_SEO_COLUMNS = 'id, from_city, to_city, slug, distance_km, sedan_price, seo_title, seo_description, seo_keywords, seo_content, updated_at';
+
 export const useSeoManagement = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const getSeoData = useCallback(async (routeId) => {
+    if (!routeId) return { success: false, error: new Error('Route ID is required') };
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('routes_seo')
-        .select('*')
-        .eq('route_id', routeId)
-        .maybeSingle();
-
-      if (error) throw error;
-      return { success: true, data };
+      const [{ data: route, error: routeError }, { data: faqs, error: faqError }] = await Promise.all([
+        supabase.from('routes').select(ROUTE_SEO_COLUMNS).eq('id', routeId).maybeSingle(),
+        supabase.from('route_faqs').select('id, category, question, answer, priority, status').eq('route_id', routeId).order('priority', { ascending: true })
+      ]);
+      if (routeError) throw routeError;
+      if (faqError) throw faqError;
+      if (!route) throw new Error('Route not found');
+      return {
+        success: true,
+        data: {
+          ...route,
+          meta_title: route.seo_title || '',
+          meta_description: route.seo_description || '',
+          secondary_keywords: route.seo_keywords || [],
+          long_form_content: route.seo_content || '',
+          h1_heading: `One Way Taxi from ${route.from_city} to ${route.to_city}`,
+          focus_keyword: `${route.from_city} to ${route.to_city} one way taxi`,
+          faq_section: faqs || []
+        }
+      };
     } catch (error) {
-      console.error('Error fetching SEO data:', error);
+      console.error('[SEO] Failed to load route SEO:', error);
       return { success: false, error };
     } finally {
       setLoading(false);
@@ -28,67 +43,63 @@ export const useSeoManagement = () => {
   }, []);
 
   const saveSeoData = useCallback(async (routeId, seoData, isAuto = false) => {
+    if (!routeId) return { success: false, error: new Error('Route ID is required') };
     setLoading(true);
     try {
-      // Calculate score before saving
-      const { totalScore } = calculateSeoScore(seoData);
-      const dataToSave = {
-        ...seoData,
-        route_id: routeId,
-        seo_score: isAuto ? Math.min(70, totalScore) : totalScore,
-        is_auto: isAuto,
+      const validation = validateRouteSeo(seoData);
+      if (validation.length) throw new Error(validation.join(' '));
+      const routeUpdate = {
+        seo_title: seoData.meta_title.trim(),
+        seo_description: seoData.meta_description.trim(),
+        seo_keywords: Array.isArray(seoData.secondary_keywords) ? seoData.secondary_keywords.filter(Boolean) : [],
+        seo_content: seoData.long_form_content || '',
+        content_word_count: (seoData.long_form_content || '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length,
+        content_validation_status: isAuto ? 'draft' : 'reviewed',
+        content_last_updated: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+      const { data: savedRoute, error } = await supabase.from('routes').update(routeUpdate).eq('id', routeId).select(ROUTE_SEO_COLUMNS).single();
+      if (error) throw error;
 
-      // Check if exists
-      const { data: existing } = await supabase.from('routes_seo').select('id, is_auto').eq('route_id', routeId).maybeSingle();
-
-      let result;
-      if (existing) {
-        // Update
-        const { data, error } = await supabase
-          .from('routes_seo')
-          .update(dataToSave)
-          .eq('id', existing.id)
-          .select()
-          .single();
-        if (error) throw error;
-        result = data;
-
-        // Create history (simplified for brevity)
-        if (!isAuto) {
-             await supabase.from('routes_seo_history').insert({
-                 route_seo_id: existing.id,
-                 changed_fields: JSON.stringify(Object.keys(seoData)),
-                 // changed_by: user_id handled by RLS or passed explicitly if needed
-             });
+      // Preserve existing FAQ IDs and update/delete only the rows explicitly edited in this form.
+      const incomingFaqs = Array.isArray(seoData.faq_section) ? seoData.faq_section : [];
+      const { data: existingFaqs, error: existingError } = await supabase.from('route_faqs').select('id').eq('route_id', routeId);
+      if (existingError) throw existingError;
+      const retainedIds = [];
+      for (let index = 0; index < incomingFaqs.length; index += 1) {
+        const faq = incomingFaqs[index];
+        if (!faq.question?.trim() || !faq.answer?.trim()) continue;
+        const row = {
+          route_id: routeId,
+          category: (faq.category || `custom-${index + 1}`).trim(),
+          question: faq.question.trim(),
+          answer: faq.answer.trim(),
+          priority: index,
+          status: faq.status === 'draft' ? 'draft' : 'approved',
+          updated_at: new Date().toISOString()
+        };
+        if (faq.id) {
+          const { error: updateError } = await supabase.from('route_faqs').update(row).eq('id', faq.id).eq('route_id', routeId);
+          if (updateError) throw updateError;
+          retainedIds.push(faq.id);
+        } else {
+          const { data: inserted, error: insertError } = await supabase.from('route_faqs').insert(row).select('id').single();
+          if (insertError) throw insertError;
+          retainedIds.push(inserted.id);
         }
-
-      } else {
-        // Insert
-        const { data, error } = await supabase
-          .from('routes_seo')
-          .insert(dataToSave)
-          .select()
-          .single();
-        if (error) throw error;
-        result = data;
+      }
+      const staleIds = (existingFaqs || []).map((item) => item.id).filter((id) => !retainedIds.includes(id));
+      if (staleIds.length) {
+        const { error: deleteError } = await supabase.from('route_faqs').delete().eq('route_id', routeId).in('id', staleIds);
+        if (deleteError) throw deleteError;
       }
 
-      toast({
-        title: 'SEO Data Saved',
-        description: `Score: ${result.seo_score}/100`,
-        className: "bg-green-600 text-white"
-      });
-
-      return { success: true, data: result };
+      const score = calculateSeoScore({ ...seoData, slug: savedRoute.slug });
+      toast({ title: 'SEO saved', description: `Route SEO saved. On-page score: ${score.totalScore}/100`, className: 'bg-green-600 text-white' });
+      return { success: true, data: savedRoute, score };
     } catch (error) {
-      console.error('Error saving SEO data:', error);
-      toast({
-        variant: "destructive",
-        title: "Save Failed",
-        description: error.message
-      });
+      console.error('[SEO] Failed to save route SEO:', error);
+      toast({ variant: 'destructive', title: 'SEO save failed', description: error.message || 'Please try again.' });
       return { success: false, error };
     } finally {
       setLoading(false);
@@ -96,17 +107,22 @@ export const useSeoManagement = () => {
   }, [toast]);
 
   const generateAndSaveSeo = useCallback(async (route) => {
-    // route object must have from_city, to_city, distance_km, sedan_price
-    const prices = { sedan_price: route.sedan_price };
-    const seoData = generateSeoForRoute(route.from_city, route.to_city, route.distance_km, prices);
-    return await saveSeoData(route.id, seoData, true);
+    const generated = generateSeoForRoute(route);
+    if (!generated) return { success: false, error: new Error('Route data is required') };
+    return saveSeoData(route.id, generated, true);
   }, [saveSeoData]);
 
-  return {
-    loading,
-    getSeoData,
-    saveSeoData,
-    generateAndSaveSeo,
-    calculateSeoScore
-  };
+  return { loading, getSeoData, saveSeoData, generateAndSaveSeo, calculateSeoScore };
 };
+
+export function validateRouteSeo(data = {}) {
+  const issues = [];
+  const title = (data.meta_title || '').trim();
+  const description = (data.meta_description || '').trim();
+  if (!title) issues.push('Meta title is required.');
+  if (title.length > 60) issues.push('Meta title must be 60 characters or fewer.');
+  if (!description) issues.push('Meta description is required.');
+  if (!description.includes('+91 75675 75578')) issues.push('Meta description must include +91 75675 75578.');
+  if (description.length < 140 || description.length > 160) issues.push('Meta description should be 140–160 characters.');
+  return issues;
+}
