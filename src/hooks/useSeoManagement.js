@@ -77,7 +77,7 @@ export const useSeoManagement = () => {
           question: faq.question.trim(),
           answer: faq.answer.trim(),
           priority: index,
-          status: ['draft', 'approved', 'rejected'].includes(faq.status) ? faq.status : 'draft',
+          status: 'approved',
           updated_at: new Date().toISOString()
         };
         if (faq.id) {
