@@ -69,14 +69,10 @@ export async function getSitemapStatistics() {
 
     if (routesError) throw routesError;
 
-    const { data: citiesData, error: citiesError } = await supabase
-      .from('routes')
-      .select('from_city')
-      .eq('is_active', true);
-
-    if (citiesError) throw citiesError;
-
-    const uniqueCities = new Set(citiesData.map(r => r.from_city));
+    const allRoutes = await fetchAllActiveRoutes();
+    const uniqueCities = new Set(
+      allRoutes.flatMap((route) => [route.from_city, route.to_city]).filter(Boolean).map((city) => String(city).trim())
+    );
     
     const routesChunks = Math.ceil((routesCount || 0) / 1000) || 1;
     
@@ -119,6 +115,22 @@ function slugifyCity(city) {
   return String(city).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+async function fetchAllActiveRoutes() {
+  const allRoutes = [];
+  const pageSize = 1000;
+  for (let offset = 0; offset < 50000; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('routes')
+      .select('from_city, to_city, slug, updated_at')
+      .eq('is_active', true)
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    allRoutes.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return allRoutes;
+}
+
 async function uploadSitemapFile(fileName, xmlContent) {
   const { error } = await supabase.storage
     .from('sitemaps')
@@ -141,12 +153,7 @@ export async function regenerateSitemap() {
     const siteUrl = window.location.origin;
     const nowIso = new Date().toISOString();
 
-    const { data: routes, error: routesError } = await supabase
-      .from('routes')
-      .select('from_city, to_city, slug, updated_at')
-      .eq('is_active', true);
-
-    if (routesError) throw routesError;
+    const routes = await fetchAllActiveRoutes();
 
     // Static pages sitemap
     const staticPages = ['', 'routes', 'services', 'about', 'contact'];
@@ -157,7 +164,7 @@ export async function regenerateSitemap() {
       `\n</urlset>`;
     await uploadSitemapFile('sitemap-pages.xml', pagesXml);
     const { data: pagesPublicUrl } = supabase.storage.from('sitemaps').getPublicUrl('sitemap-pages.xml');
-    const uniqueCities = [...new Set((routes || []).map(r => r.from_city))].sort();
+    const uniqueCities = [...new Set((routes || []).flatMap((route) => [route.from_city, route.to_city]).filter(Boolean).map((city) => String(city).trim()))].sort();
     const citiesXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
       uniqueCities.map(city => 
         `  <url>\n    <loc>${xmlEscape(`${siteUrl}/routes/city/${slugifyCity(city)}`)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`
