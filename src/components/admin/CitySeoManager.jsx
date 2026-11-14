@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { RefreshCw, Save, Search, MapPin, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Save, Search, MapPin, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,7 @@ export default function CitySeoManager() {
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
@@ -91,6 +92,40 @@ export default function CitySeoManager() {
     }
   };
 
+  const generateCityContent = async () => {
+    if (!selected) return;
+    setAiLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Your admin session has expired. Please sign in again.');
+      const [{ data: outgoing, error: outgoingError }, { data: incoming, error: incomingError }] = await Promise.all([
+        supabase.from('routes').select('to_city').eq('from_city', selected).eq('is_active', true).limit(20),
+        supabase.from('routes').select('from_city').eq('to_city', selected).eq('is_active', true).limit(20)
+      ]);
+      if (outgoingError) throw outgoingError;
+      if (incomingError) throw incomingError;
+      const response = await fetch('/api/admin/seo/ai-generate-city', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          city_name: selected,
+          state: stateName,
+          outgoing_destinations: (outgoing || []).map((row) => row.to_city),
+          incoming_origins: (incoming || []).map((row) => row.from_city)
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'AI city content generation failed.');
+      setDescription(result.description);
+      setNotice('AI generated a draft city introduction. Review every statement and click Save city profile only when you approve it.');
+    } catch (error) {
+      console.error('[City SEO] AI generation failed:', error);
+      setNotice(error.message || 'AI city content generation failed. No profile was changed.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const saveProfile = async () => {
     if (!selected) return;
     if (description.trim() && description.trim().length < 120) {
@@ -151,7 +186,10 @@ export default function CitySeoManager() {
             </div>
             <label className="block text-sm text-slate-300">Unique city introduction (visible on the city page)<Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={9} placeholder={`Write verified, useful information about ${selected}: location context, relevant travel hubs, pickup planning and local route usefulness. Do not invent landmarks or service claims.`} className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
             <div className="flex justify-between items-center mt-2 text-xs text-slate-500"><span>{description.trim().length} characters · Avoid duplicate generic text</span><span>City page meta title and description are generated from the city name.</span></div>
-            <div className="mt-5"><Button onClick={saveProfile} disabled={busy} className="bg-amber-500 text-slate-950 hover:bg-amber-400"><Save className="w-4 h-4 mr-2" /> Save city profile</Button></div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button onClick={generateCityContent} disabled={aiLoading || busy} variant="outline" className="border-violet-300 text-violet-300 hover:bg-violet-950/40"><Sparkles className="w-4 h-4 mr-2" /> {aiLoading ? 'Generating…' : 'AI Generate City Content'}</Button>
+              <Button onClick={saveProfile} disabled={busy || aiLoading} className="bg-amber-500 text-slate-950 hover:bg-amber-400"><Save className="w-4 h-4 mr-2" /> Save city profile</Button>
+            </div>
           </>}
         </section>
       </div>
