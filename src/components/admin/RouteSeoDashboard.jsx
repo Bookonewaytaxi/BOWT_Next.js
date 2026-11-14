@@ -90,7 +90,7 @@ export default function RouteSeoDashboard() {
       try {
         const generated = generateSeoForRoute(route);
         const patch = {};
-        if (!route.seo_title || route.seo_title.length > 60) patch.seo_title = generated.meta_title;
+        if (!route.seo_title || route.seo_title.length < 30 || route.seo_title.length > 60) patch.seo_title = generated.meta_title;
         if (!route.seo_description || !route.seo_description.includes('+91 75675 75578') || route.seo_description.length < 140 || route.seo_description.length > 160) patch.seo_description = generated.meta_description;
         if (!route.seo_keywords?.length) patch.seo_keywords = generated.secondary_keywords;
         if (!route.seo_content) {
