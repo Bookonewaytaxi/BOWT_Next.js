@@ -13,9 +13,9 @@ const money = (value) => Number(value) > 0 ? '₹' + Number(value).toLocaleStrin
 function RouteCard({ route }) {
   const prices = [
     ['Sedan (4+1)', route.sedan_price],
-    ['SUV (6+1) Ertiga', route.suv_ertiga_price || route.ertiga_price],
-    ['SUV (7+1) Carens', route.kia_carens_price || route.carens_price],
-    ['Innova Crysta', route.innova_crysta_price || route.crysta_price],
+    ['SUV (6+1) Ertiga', route.ertiga_price],
+    ['SUV (7+1) Carens', route.carens_price],
+    ['Innova Crysta', route.innova_price],
   ].filter(([, price]) => Number(price) > 0);
   return <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
     <h3 className="text-lg font-bold text-slate-900">
