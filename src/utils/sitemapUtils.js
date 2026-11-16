@@ -167,7 +167,7 @@ export async function regenerateSitemap() {
     const uniqueCities = [...new Set((routes || []).flatMap((route) => [route.from_city, route.to_city]).filter(Boolean).map((city) => String(city).trim()))].sort();
     const citiesXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
       uniqueCities.map(city => 
-        `  <url>\n    <loc>${xmlEscape(`${siteUrl}/routes/city/${slugifyCity(city)}`)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`
+        `  <url>\n    <loc>${xmlEscape(`${siteUrl}/routes/${slugifyCity(city)}-taxi-service`)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`
       ).join('\n') +
       `\n</urlset>`;
 
