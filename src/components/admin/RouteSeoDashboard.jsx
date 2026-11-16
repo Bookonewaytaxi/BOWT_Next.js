@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { generateSeoForRoute } from '@/utils/seoGenerator';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
+import RouteSeoBulkManager from '@/components/admin/RouteSeoBulkManager';
 
 const PAGE_SIZE = 50;
 const ROUTE_FIELDS = 'id, from_city, to_city, slug, is_active, distance_km, sedan_price, seo_title, seo_description, seo_keywords, seo_content, updated_at';
@@ -36,6 +37,7 @@ export default function RouteSeoDashboard() {
   const [notice, setNotice] = useState('');
   const [audit, setAudit] = useState(null);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [bulkEditorOpen, setBulkEditorOpen] = useState(false);
   const router = useRouter();
 
   const fetchRoutes = useCallback(async () => {
@@ -170,6 +172,7 @@ export default function RouteSeoDashboard() {
         <div><h1 className="text-3xl font-bold text-white">On-Page SEO Management</h1><p className="text-slate-400 mt-1">Manage route metadata and content without changing route URLs, fares or bookings.</p></div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="border-slate-700 text-slate-200" onClick={fetchRoutes} disabled={loading}><RefreshCw className="w-4 h-4 mr-2" /> Refresh</Button>
+          <Button className="bg-violet-600 text-white hover:bg-violet-500" onClick={() => setBulkEditorOpen(true)}><Wand2 className="w-4 h-4 mr-2" /> AI Bulk SEO Editor</Button>
           <Button variant="outline" className="border-emerald-700 text-emerald-300" onClick={runFullAudit} disabled={auditLoading}><ClipboardCheck className="w-4 h-4 mr-2" /> {auditLoading ? 'Auditing all routes…' : 'Run full audit'}</Button>
           <Button className="bg-amber-500 text-slate-950 hover:bg-amber-400" onClick={bulkGenerate} disabled={busy || selected.length === 0}><Wand2 className="w-4 h-4 mr-2" /> Generate missing ({selected.length})</Button>
         </div>
@@ -239,6 +242,7 @@ export default function RouteSeoDashboard() {
         </div>
       </div>
       <p className="mt-3 text-xs text-slate-500">Bulk generation fills empty content and repairs missing or invalid meta title/description fields. It does not modify route slugs, route fares, vehicle pricing, bookings, customer records or database permissions. Automatically generated travel copy remains a draft and should be reviewed before publication.</p>
+      <RouteSeoBulkManager open={bulkEditorOpen} onClose={() => setBulkEditorOpen(false)} />
     </div>
   );
 }
