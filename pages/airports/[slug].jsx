@@ -36,7 +36,7 @@ export default function AirportTaxiPage({ airport, cityProfile, outgoingRoutes, 
   return <>
     <Head>
       <title>{title}</title><meta name="description" content={description} />
-      <meta name="robots" content={routes.length ? 'index,follow' : 'noindex,follow'} />
+      <meta name="robots" content="index,follow" />
       <link rel="canonical" href={canonical} />
       <meta property="og:type" content="website" /><meta property="og:site_name" content="Book One Way Taxi" />
       <meta property="og:title" content={title} /><meta property="og:description" content={description} /><meta property="og:url" content={canonical} />
