@@ -180,12 +180,12 @@ export default function RouteSeoBulkManager({ open, onClose }) {
 
     const writeMetadata = selectedFields.some((key) => ['meta_title', 'meta_description', 'focus_keyword', 'secondary_keywords'].includes(key));
     if (writeMetadata) {
-      const nextTitle = patch.seo_title || existingTitle || generated.meta_title;
-      const nextDescription = patch.seo_description || existingDescription || generated.meta_description;
-      const nextKeywords = patch.seo_keywords || existingKeywords || generated.secondary_keywords;
+      const nextTitle = patch.seo_title || metadata?.meta_title || route.seo_title || null;
+      const nextDescription = patch.seo_description || metadata?.meta_description || route.seo_description || null;
+      const nextKeywords = patch.seo_keywords || metadata?.keywords || route.seo_keywords || null;
       const nextFocus = selectedFields.includes('focus_keyword') && (!keepExisting || !metadata?.focus_keyword)
         ? generated.focus_keyword
-        : (metadata?.focus_keyword || generated.focus_keyword);
+        : (metadata?.focus_keyword || null);
       const { error } = await supabase.from('seo_metadata').upsert({
         page_type: 'route',
         page_id: route.id,
@@ -200,7 +200,19 @@ export default function RouteSeoBulkManager({ open, onClose }) {
     }
 
     if (selectedFields.includes('faq_section') && Array.isArray(generated.faq_section) && generated.faq_section.length) {
-      const faqRows = generated.faq_section.slice(0, 5).filter((faq) => faq.question && faq.answer).map((faq, index) => ({
+      const { data: priorAiFaqs, error: faqReadError } = await supabase
+        .from('route_faqs')
+        .select('category,status')
+        .eq('route_id', route.id)
+        .like('category', 'ai-bulk-faq-%');
+      if (faqReadError) throw faqReadError;
+      const priorFaqMap = new Map((priorAiFaqs || []).map((faq) => [faq.category, faq.status]));
+      const faqRows = generated.faq_section.slice(0, 5).filter((faq, index) => {
+        if (!faq.question || !faq.answer) return false;
+        const category = 'ai-bulk-faq-' + (index + 1);
+        const priorStatus = priorFaqMap.get(category);
+        return !(priorStatus === 'approved' || (keepExisting && priorStatus));
+      }).map((faq, index) => ({
         route_id: route.id,
         category: 'ai-bulk-faq-' + (index + 1),
         question: String(faq.question).slice(0, 250),
