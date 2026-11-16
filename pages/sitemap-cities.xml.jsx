@@ -39,7 +39,7 @@ export async function getServerSideProps({ res }) {
     const urls = [...cityNames.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-      urls.map(([slug]) => `  <url>\n    <loc>${xmlEscape(`${SITE_URL}/routes/city/${encodeURIComponent(slug)}`)}</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n') +
+      urls.map(([slug]) => `  <url>\n    <loc>${xmlEscape(`${SITE_URL}/routes/${encodeURIComponent(slug)}-taxi-service`)}</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n') +
       '\n</urlset>';
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
