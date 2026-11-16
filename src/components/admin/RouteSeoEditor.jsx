@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, Eye, Globe, Smartphone, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, RefreshCw, Eye, Globe, Smartphone, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,16 +9,17 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSeoManagement } from '@/hooks/useSeoManagement';
 import { calculateSeoScore } from '@/utils/seoScoreCalculator';
+import { supabase } from '@/lib/customSupabaseClient';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
-import 'react-quill/dist/quill.snow.css';
 
 export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState(initialData || {});
   const [scoreData, setScoreData] = useState({ totalScore: 0, breakdown: {} });
   const [activeTab, setActiveTab] = useState('basic');
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     // Recalculate score whenever form data changes
@@ -47,6 +48,59 @@ export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel 
     onSave(formData);
   };
 
+  const handleAiGenerate = async () => {
+    if (!formData.from_city || !formData.to_city) {
+      window.alert('Route details are missing. Please reload this route and try again.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Your admin session has expired. Please sign in again.');
+      const fares = [
+        Number(formData.sedan_price),
+        Number(formData.suv_ertiga_price || formData.ertiga_price),
+        Number(formData.kia_carens_price || formData.carens_price),
+        Number(formData.innova_crysta_price || formData.crysta_price)
+      ].filter((value) => Number.isFinite(value) && value > 0);
+      const response = await fetch('/api/admin/seo/ai-generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          route: {
+            from_city: formData.from_city,
+            to_city: formData.to_city,
+            distance_km: formData.distance_km,
+            starting_price: fares.length ? Math.min(...fares) : formData.route_price,
+            vehicle_prices: {
+              sedan: formData.sedan_price,
+              ertiga: formData.suv_ertiga_price || formData.ertiga_price,
+              carens: formData.kia_carens_price || formData.carens_price,
+              innova_crysta: formData.innova_crysta_price || formData.crysta_price
+            }
+          }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'AI generation failed.');
+      setFormData((current) => ({
+        ...current,
+        ...result,
+        slug: current.slug,
+        faq_section: Array.isArray(result.faq_section) && result.faq_section.length ? result.faq_section : current.faq_section
+      }));
+      window.alert('AI SEO draft generated. Review every field and FAQ carefully, then save only when you approve the content.');
+    } catch (error) {
+      console.error('[SEO Editor] AI generation failed:', error);
+      window.alert(error.message || 'AI generation failed. No data was saved.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const ScoreBadge = ({ score, max }) => {
       const percentage = (score / max) * 100;
       let color = 'bg-red-500';
@@ -70,6 +124,9 @@ export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel 
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button variant="outline" onClick={handleAiGenerate} disabled={aiLoading} className="border-violet-300 text-violet-700 hover:bg-violet-50">
+                <Sparkles className="w-4 h-4 mr-2" /> {aiLoading ? 'Generating…' : 'AI Generate Draft'}
+            </Button>
             <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold">
                 <Save className="w-4 h-4 mr-2" /> Save Changes
             </Button>
@@ -96,9 +153,10 @@ export default function RouteSeoEditor({ routeId, initialData, onSave, onCancel 
                                 <Input 
                                     id="slug" 
                                     value={formData.slug || ''} 
-                                    onChange={(e) => handleChange('slug', e.target.value)} 
+                                    readOnly
+                                    aria-readonly="true"
                                 />
-                                <p className="text-xs text-slate-500">example: mumbai-to-pune-taxi</p>
+                                <p className="text-xs text-slate-500">Protected route URL. SEO editing never changes existing route slugs or indexed URLs.</p>
                             </div>
                             
                             <div className="grid gap-2">

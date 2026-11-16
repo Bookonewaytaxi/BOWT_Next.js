@@ -2,6 +2,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { slugify } from '@/lib/utils';
 import { generateSEOTitle, generateMetaDescription, generateKeywords } from '@/utils/seoGeneratorService';
 import { generateRouteContent, validateKeywordUsage } from '@/utils/ContentGeneratorService';
+import { syncCityProfilesForRoutes } from '@/utils/cityProfileSync';
 
 const PAGE_SIZE = 1000;
 const WRITE_BATCH_SIZE = 250;
@@ -274,6 +275,24 @@ export const processRoutesImport = async (parsedData, userId) => {
     ...insertResult.errors.map((item) => `Insert failed for ${item.row.from_city} → ${item.row.to_city}: ${item.message}${item.code ? ` [${item.code}]` : ''}`),
     ...updateResult.errors.map((item) => `Update failed for ${item.row.from_city} → ${item.row.to_city}: ${item.message}${item.code ? ` [${item.code}]` : ''}`),
   ];
+
+  // Automatically provision one shared profile per distinct city after routes persist.
+  // A city-profile failure is reported separately and never rolls back successful routes.
+  const failedRouteKeys = new Set([
+    ...insertResult.errors.map(({ row }) => routeKey(row.from_city, row.to_city)),
+    ...updateResult.errors.map(({ row }) => routeKey(row.from_city, row.to_city)),
+  ]);
+  const persistedCityRoutes = [...processedCreated, ...processedUpdated]
+    .filter((route) => !failedRouteKeys.has(routeKey(route.from_city, route.to_city)));
+  let cityProfileSync = { created: 0, attempted: 0, error: null };
+  if (persistedCityRoutes.length) {
+    try {
+      cityProfileSync = { ...(await syncCityProfilesForRoutes(persistedCityRoutes)), error: null };
+    } catch (syncError) {
+      cityProfileSync = { created: 0, attempted: 0, error: syncError.message || 'City profile sync failed' };
+      processingErrors.push(`Routes saved, but city profile creation needs retry: ${cityProfileSync.error}`);
+    }
+  }
 
   // Import logging is intentionally non-blocking. The importer must never
   // report a route failure because an optional audit/log table is unavailable.

@@ -1,24 +1,96 @@
 import RouteDetailsPage from '@/screens/RouteDetailsPage';
+import CityTaxiLandingPage from '@/screens/CityTaxiLandingPage';
+import { supabase } from '@/lib/customSupabaseClient';
+import { slugify } from '@/lib/utils';
 import { getRouteBySlug, calculateStartingPrice, getRoutesByCity, getPopularRoutes } from '@/services/RouteService';
 import { getRouteCityProfiles } from '@/services/CityContentService';
 import { getApprovedFaqs } from '@/services/FaqService';
 
+const PAGE_SIZE = 1000;
+
 export default function Page(props) {
+  if (props.pageType === 'city') return <CityTaxiLandingPage {...props} />;
   return <RouteDetailsPage {...props} />;
 }
 
-// No paths are pre-built at deploy time (22,000+ routes would make builds
-// impossibly slow). Every route generates on its first real visit
-// (fallback: 'blocking'), then is served from cache until revalidation.
+async function findCityBySlug(citySlug) {
+  for (let offset = 0; offset < 50000; offset += PAGE_SIZE) {
+    const { data, error } = await supabase.from('routes')
+      .select('from_city,to_city')
+      .eq('is_active', true)
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const row of data || []) {
+      for (const name of [row.from_city, row.to_city]) {
+        if (name && slugify(name) === citySlug) return name;
+      }
+    }
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+  return null;
+}
+
+async function fetchCityRoutes(column, cityName) {
+  const rows = [];
+  for (let offset = 0; offset < 20000; offset += PAGE_SIZE) {
+    const { data, error } = await supabase.from('routes')
+      .select('id,from_city,to_city,slug,distance_km,sedan_price,ertiga_price,carens_price,innova_price')
+      .eq(column, cityName)
+      .eq('is_active', true)
+      .not('slug', 'is', null)
+      .order(column === 'from_city' ? 'to_city' : 'from_city', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+// One dynamic route file handles both existing route slugs and the new
+// /routes/{city}-taxi-service URLs. Next.js does not support a bracket
+// parameter followed by a literal suffix in a Pages Router filename.
 export async function getStaticPaths() {
-  return {
-    paths: [],
-    fallback: 'blocking',
-  };
+  return { paths: [], fallback: 'blocking' };
 }
 
 export async function getStaticProps({ params }) {
-  const { slug } = params;
+  const slug = String(params?.slug || '');
+  const citySuffix = '-taxi-service';
+
+  if (slug.endsWith(citySuffix)) {
+    const citySlug = slug.slice(0, -citySuffix.length);
+    try {
+      const cityName = await findCityBySlug(citySlug);
+      if (cityName) {
+        const [{ data: profile, error: profileError }, outgoingRoutes, incomingRoutes] = await Promise.all([
+          supabase.from('city_profiles')
+            .select('city_name,state,description,image_url')
+            .eq('city_name', cityName)
+            .eq('is_active', true)
+            .maybeSingle(),
+          fetchCityRoutes('from_city', cityName),
+          fetchCityRoutes('to_city', cityName),
+        ]);
+        if (profileError) console.error('[CityTaxiPage] City profile fetch failed:', profileError);
+        return {
+          props: {
+            pageType: 'city',
+            cityName,
+            citySlug,
+            profile: profile || null,
+            outgoingRoutes,
+            incomingRoutes,
+          },
+          revalidate: 3600,
+        };
+      }
+    } catch (error) {
+      console.error('[CityTaxiPage] Failed to build city landing page:', error);
+      throw error;
+    }
+    return { notFound: true, revalidate: 3600 };
+  }
 
   let route;
   try {
@@ -28,16 +100,9 @@ export async function getStaticProps({ params }) {
     throw err;
   }
 
-  if (!route) {
-    return { notFound: true, revalidate: 3600 };
-  }
+  if (!route) return { notFound: true, revalidate: 3600 };
 
   const startingPrice = calculateStartingPrice(route);
-
-  // FAQ rows are published data, so they are fetched on the server together
-  // with the other route dependencies. A failure here must not turn a healthy
-  // route into a 500; RouteDetailsPage keeps its deterministic legacy FAQ
-  // fallback for routes that have not yet been generated in route_faqs.
   const [relatedRoutesRaw, toCityRoutesRaw, popularRoutes, cityProfiles, approvedFaqs] = await Promise.all([
     route.from_city ? getRoutesByCity(route.from_city) : Promise.resolve([]),
     route.to_city ? getRoutesByCity(route.to_city) : Promise.resolve([]),
@@ -51,15 +116,13 @@ export async function getStaticProps({ params }) {
     }),
   ]);
 
-  const relatedRoutes = relatedRoutesRaw.filter((r) => r.id !== route.id).slice(0, 6);
-  const toCityRoutes = toCityRoutesRaw.filter((r) => r.id !== route.id).slice(0, 6);
-
   return {
     props: {
+      pageType: 'route',
       route,
       startingPrice,
-      relatedRoutes,
-      toCityRoutes,
+      relatedRoutes: relatedRoutesRaw.filter((r) => r.id !== route.id).slice(0, 6),
+      toCityRoutes: toCityRoutesRaw.filter((r) => r.id !== route.id).slice(0, 6),
       popularRoutes,
       cityProfiles,
       approvedFaqs,

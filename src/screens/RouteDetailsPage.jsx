@@ -58,12 +58,12 @@ export default function RouteDetailsPage({
   const pageUrl = route.slug ? `${SITE_URL}/routes/${route.slug}` : SITE_URL;
 
   const seoTitle = route.seo_title || `${from_city} to ${to_city} Taxi Service - Book Now`;
-  const seoDesc = route.seo_description || `Book reliable one-way taxi from ${from_city} to ${to_city}. Distance: ${distance_km || 'Standard'} km. Fares start ₹${startingPrice}.`;
+  const seoDesc = route.seo_description || `Book a one way taxi from ${from_city} to ${to_city}. Call +91 75675 75578 for booking. Toll, permit, border tax and driver allowance included; parking extra.`;
   const seoKeywords = route.seo_keywords && Array.isArray(route.seo_keywords) ? route.seo_keywords.join(', ') : '';
 
   const breadcrumbItems = [
     { label: 'Routes', href: '/routes' },
-    { label: from_city, href: `/routes/city/${slugify(from_city)}` },
+    { label: from_city, href: `/routes/${slugify(from_city)}-taxi-service` },
     { label: `${from_city} to ${to_city}`, href: '#' }
   ];
   const schemaBreadcrumbItems = [{ label: 'Home', href: '/' }, ...breadcrumbItems];
@@ -82,8 +82,9 @@ export default function RouteDetailsPage({
     faqs,
   });
 
+  const hasPublishedSeoContent = route.content_validation_status !== 'draft' && Boolean(route.seo_content);
   const sections = getRouteSectionAvailability({
-    route,
+    route: hasPublishedSeoContent ? route : { ...route, seo_content: null },
     fromCityProfile: cityProfiles.fromProfile,
     toCityProfile: cityProfiles.toProfile,
     relatedRoutes,
@@ -145,7 +146,7 @@ export default function RouteDetailsPage({
               <RelatedRoutesSection fromCity={from_city} relatedRoutes={relatedRoutes} />
             )}
             {isAvailable('faq') && <RouteFAQSection faqs={faqs} />}
-            {isAvailable('travel-guide') && (
+            {isAvailable('travel-guide') && hasPublishedSeoContent && (
               <SEOContentDisplay content={route.seo_content} route={route} startingPrice={startingPrice} />
             )}
             <InternalLinkHub

@@ -31,6 +31,7 @@ export async function getServerSideProps({ res }) {
 
     const sitemapUrls = [
       `${SITE_URL}/sitemap-pages.xml`,
+      `${SITE_URL}/sitemap-cities.xml`,
       ...Array.from(
         { length: routeSitemapCount },
         (_, index) => `${SITE_URL}/sitemap-routes-${index + 1}.xml`
