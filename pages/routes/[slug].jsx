@@ -77,7 +77,7 @@ export async function getStaticProps({ params }) {
     try {
       const cityName = await findCityBySlug(citySlug);
       if (cityName) {
-        const [{ data: profile, error: profileError }, outgoingRoutes, incomingRoutes] = await Promise.all([
+        const [{ data: profile, error: profileError }, outgoingRoutes, incomingRoutes, { data: seo, error: seoError }] = await Promise.all([
           supabase.from('city_profiles')
             .select('city_name,state,description,image_url')
             .eq('city_name', cityName)
@@ -85,14 +85,17 @@ export async function getStaticProps({ params }) {
             .maybeSingle(),
           fetchCityRoutes('from_city', cityName),
           fetchCityRoutes('to_city', cityName),
+          supabase.from('seo_metadata').select('meta_title,meta_description,keywords,og_image_url').eq('page_type', 'city').eq('slug', citySlug).maybeSingle(),
         ]);
         if (profileError) console.error('[CityTaxiPage] City profile fetch failed:', profileError);
+        if (seoError) console.error('[CityTaxiPage] City SEO metadata fetch failed:', seoError);
         return {
           props: {
             pageType: 'city',
             cityName,
             citySlug,
             profile: profile || null,
+            seo: seo || null,
             outgoingRoutes,
             incomingRoutes,
           },
