@@ -15,7 +15,7 @@ export default function PagesSitemapXml() {
 
 export async function getServerSideProps({ res }) {
   const now = new Date().toISOString();
-  const pages = ['/', '/routes', '/services', '/about', '/contact'];
+  const pages = ['/', '/routes', '/airports', '/services', '/about', '/contact'];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
