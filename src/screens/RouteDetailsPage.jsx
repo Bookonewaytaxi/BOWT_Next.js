@@ -63,7 +63,7 @@ export default function RouteDetailsPage({
 
   const breadcrumbItems = [
     { label: 'Routes', href: '/routes' },
-    { label: from_city, href: `/routes/city/${slugify(from_city)}` },
+    { label: from_city, href: `/routes/${slugify(from_city)}-taxi-service` },
     { label: `${from_city} to ${to_city}`, href: '#' }
   ];
   const schemaBreadcrumbItems = [{ label: 'Home', href: '/' }, ...breadcrumbItems];
