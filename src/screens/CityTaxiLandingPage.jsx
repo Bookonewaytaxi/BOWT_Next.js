@@ -37,10 +37,10 @@ function RouteCard({ route }) {
   </article>;
 }
 
-export default function CityTaxiLandingPage({ cityName, citySlug, profile, outgoingRoutes, incomingRoutes }) {
+export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, outgoingRoutes, incomingRoutes }) {
   const canonical = `${SITE_URL}/routes/${citySlug}-taxi-service`;
-  const title = `${cityName} Taxi Service | One Way Cab Booking | Book One Way Taxi`.slice(0, 60);
-  const description = `Book a one way taxi from or to ${cityName}. Compare fixed route fares for Sedan, Ertiga, Carens and Innova Crysta. Toll, permit and driver allowance included; parking extra. Call ${phone}.`.slice(0, 160);
+  const title = (seo?.meta_title || `${cityName} Taxi Service | One Way Cab Booking | Book One Way Taxi`).slice(0, 60);
+  const description = (seo?.meta_description || `Book a one way taxi from or to ${cityName}. Compare fixed route fares for Sedan, Ertiga, Carens and Innova Crysta. Toll, permit and driver allowance included; parking extra. Call ${phone}.`).slice(0, 160);
   const allRoutes = [...outgoingRoutes, ...incomingRoutes.filter((r) => !outgoingRoutes.some((o) => o.id === r.id))];
   const schema = {
     '@context': 'https://schema.org',
