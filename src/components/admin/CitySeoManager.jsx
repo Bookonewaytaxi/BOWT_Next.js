@@ -179,7 +179,7 @@ export default function CitySeoManager() {
         </aside>
         <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
           {!selected ? <p className="text-slate-400">Select a city to manage its content.</p> : <>
-            <div className="flex items-center justify-between mb-5"><div><h3 className="text-xl font-bold text-white">{selected}</h3><p className="text-xs text-slate-500">Canonical page: /routes/city/{slugifyCity(selected)}</p></div><span className="text-xs text-slate-400">{activeProfile ? 'Profile exists' : 'Profile not created'}</span></div>
+            <div className="flex items-center justify-between mb-5"><div><h3 className="text-xl font-bold text-white">{selected}</h3><p className="text-xs text-slate-500">Canonical page: /routes/{slugifyCity(selected)}-taxi-service</p></div><span className="text-xs text-slate-400">{activeProfile ? 'Profile exists' : 'Profile not created'}</span></div>
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <label className="block text-sm text-slate-300">State / Region<Input value={stateName} onChange={(e) => setStateName(e.target.value)} placeholder="e.g. Gujarat" className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
               <label className="block text-sm text-slate-300">City image URL (optional)<Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
