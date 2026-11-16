@@ -334,7 +334,8 @@ export default function RouteSeoBulkManager({ open, onClose }) {
       updatedAt: new Date().toISOString()
     };
     setAndPersistJob(next);
-    setNotice('Job created for ' + next.queue.length.toLocaleString('en-IN') + ' routes.');
+    setNotice('Job created for ' + next.queue.length.toLocaleString('en-IN') + ' routes. AI generation will start now.');
+    processJob();
   };
 
   const pauseJob = () => {
