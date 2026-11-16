@@ -14,6 +14,20 @@ export default function Page(props) {
 }
 
 async function findCityBySlug(citySlug) {
+  // The canonical city list already exists in city_profiles (144 active rows).
+  // Resolve by its stored slug first; this avoids scanning the entire routes
+  // table on every first request and guarantees the profile's canonical name.
+  const { data: profile, error: profileError } = await supabase
+    .from('city_profiles')
+    .select('city_name')
+    .eq('slug', citySlug)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+  if (profile?.city_name) return profile.city_name;
+
+  // Backward-compatible fallback for any active route city not yet profiled.
   for (let offset = 0; offset < 50000; offset += PAGE_SIZE) {
     const { data, error } = await supabase.from('routes')
       .select('from_city,to_city')
@@ -34,7 +48,7 @@ async function fetchCityRoutes(column, cityName) {
   const rows = [];
   for (let offset = 0; offset < 20000; offset += PAGE_SIZE) {
     const { data, error } = await supabase.from('routes')
-      .select('id,from_city,to_city,slug,distance_km,sedan_price,ertiga_price,carens_price,innova_price')
+      .select('id,from_city,to_city,slug,distance_km,sedan_price,ertiga_price,carens_price,innova_crysta_price')
       .eq(column, cityName)
       .eq('is_active', true)
       .not('slug', 'is', null)
