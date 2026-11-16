@@ -16,6 +16,10 @@ export default function CitySeoManager() {
   const [stateName, setStateName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [seoProfiles, setSeoProfiles] = useState({});
+  const [seoTitle, setSeoTitle] = useState('');
+  const [seoDescription, setSeoDescription] = useState('');
+  const [seoKeywords, setSeoKeywords] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -45,8 +49,15 @@ export default function CitySeoManager() {
         if (error) throw error;
         (data || []).forEach((profile) => { profileMap[profile.city_name.toLowerCase()] = profile; });
       }
+      const { data: seoRows, error: seoError } = await supabase.from('seo_metadata')
+        .select('id,page_type,slug,meta_title,meta_description,keywords')
+        .eq('page_type', 'city');
+      if (seoError) throw seoError;
+      const seoMap = {};
+      (seoRows || []).forEach((row) => { if (row.slug) seoMap[row.slug] = row; });
       setCities(names);
       setProfiles(profileMap);
+      setSeoProfiles(seoMap);
       setSelected((current) => current || names[0] || '');
     } catch (error) {
       console.error('[City SEO] Failed to load city index:', error);
@@ -59,11 +70,15 @@ export default function CitySeoManager() {
   useEffect(() => { load(); }, [load]);
 
   const activeProfile = selected ? profiles[selected.toLowerCase()] : null;
+  const activeSeo = selected ? seoProfiles[slugifyCity(selected)] : null;
   useEffect(() => {
     setStateName(activeProfile?.state || '');
     setDescription(activeProfile?.description || '');
     setImageUrl(activeProfile?.image_url || '');
-  }, [selected, activeProfile?.id, activeProfile?.updated_at]);
+    setSeoTitle(activeSeo?.meta_title || '');
+    setSeoDescription(activeSeo?.meta_description || '');
+    setSeoKeywords(Array.isArray(activeSeo?.keywords) ? activeSeo.keywords.join(', ') : '');
+  }, [selected, activeProfile?.id, activeProfile?.updated_at, activeSeo?.id, activeSeo?.updated_at]);
 
   const visibleCities = useMemo(() => cities.filter((city) => city.toLowerCase().includes(filter.toLowerCase())), [cities, filter]);
   const missingCount = cities.filter((city) => !profiles[city.toLowerCase()]).length;
@@ -146,7 +161,26 @@ export default function CitySeoManager() {
       const { data, error } = await supabase.from('city_profiles').upsert(row, { onConflict: 'city_name' }).select('id,city_name,slug,state,description,image_url,is_active').single();
       if (error) throw error;
       setProfiles((current) => ({ ...current, [selected.toLowerCase()]: data }));
-      setNotice(`City profile saved for ${selected}. The city page will use this content after its next revalidation.`);
+      const seoPayload = {
+        page_type: 'city',
+        page_id: data.id,
+        slug: slugifyCity(selected),
+        meta_title: seoTitle.trim() || null,
+        meta_description: seoDescription.trim() || null,
+        keywords: seoKeywords.split(',').map((item) => item.trim()).filter(Boolean),
+        focus_keyword: `${selected} taxi service`,
+        updated_at: new Date().toISOString()
+      };
+      const existingSeo = seoProfiles[slugifyCity(selected)];
+      let seoResult;
+      if (existingSeo?.id) {
+        seoResult = await supabase.from('seo_metadata').update(seoPayload).eq('id', existingSeo.id).select('id,page_type,slug,meta_title,meta_description,keywords').single();
+      } else {
+        seoResult = await supabase.from('seo_metadata').insert(seoPayload).select('id,page_type,slug,meta_title,meta_description,keywords').single();
+      }
+      if (seoResult.error) throw seoResult.error;
+      setSeoProfiles((current) => ({ ...current, [slugifyCity(selected)]: seoResult.data }));
+      setNotice(`City profile and SEO metadata saved for ${selected}. The public city page will refresh after its revalidation window.`);
     } catch (error) {
       console.error('[City SEO] City profile save failed:', error);
       setNotice(error.message || 'Could not save city profile.');
@@ -185,7 +219,12 @@ export default function CitySeoManager() {
               <label className="block text-sm text-slate-300">City image URL (optional)<Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
             </div>
             <label className="block text-sm text-slate-300">Unique city introduction (visible on the city page)<Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={9} placeholder={`Write verified, useful information about ${selected}: location context, relevant travel hubs, pickup planning and local route usefulness. Do not invent landmarks or service claims.`} className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
-            <div className="flex justify-between items-center mt-2 text-xs text-slate-500"><span>{description.trim().length} characters · Avoid duplicate generic text</span><span>City page meta title and description are generated from the city name.</span></div>
+            <div className="mt-5 border-t border-slate-800 pt-5"><h4 className="mb-3 text-sm font-bold text-amber-300">Search Engine Metadata</h4>
+              <label className="mb-3 block text-sm text-slate-300">SEO Title <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={70} placeholder={`${selected} Taxi Service | One Way Taxi`} className="mt-2 bg-slate-950 border-slate-700 text-white" /><span className="text-xs text-slate-500">{seoTitle.length}/60 recommended</span></label>
+              <label className="mb-3 block text-sm text-slate-300">Meta Description <Textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} rows={3} maxLength={180} placeholder={`Write a unique search description for ${selected} taxi service.`} className="mt-2 bg-slate-950 border-slate-700 text-white" /><span className="text-xs text-slate-500">{seoDescription.length}/160 recommended</span></label>
+              <label className="block text-sm text-slate-300">SEO Keywords (comma separated)<Input value={seoKeywords} onChange={(e) => setSeoKeywords(e.target.value)} className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
+            </div>
+            <div className="flex justify-between items-center mt-2 text-xs text-slate-500"><span>{description.trim().length} characters · Avoid duplicate generic text</span><span>Meta fields are stored separately from route fares and content.</span></div>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button onClick={generateCityContent} disabled={aiLoading || busy} variant="outline" className="border-violet-300 text-violet-300 hover:bg-violet-950/40"><Sparkles className="w-4 h-4 mr-2" /> {aiLoading ? 'Generating…' : 'AI Generate City Content'}</Button>
               <Button onClick={saveProfile} disabled={busy || aiLoading} className="bg-amber-500 text-slate-950 hover:bg-amber-400"><Save className="w-4 h-4 mr-2" /> Save city profile</Button>
