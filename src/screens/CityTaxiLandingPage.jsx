@@ -27,9 +27,8 @@ function RouteLinks({ title, intro, routes, emptyText }) {
   return <section className="my-10" aria-label={title}>
     <div className="mb-5"><h2 className="text-2xl font-bold text-slate-900">{title}</h2>{intro ? <p className="mt-2 max-w-3xl leading-7 text-slate-600">{intro}</p> : null}</div>
     {routes.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {routes.map((route) => <li key={route.id} className="rounded-xl border border-slate-200 bg-white p-4 hover:border-amber-400">
+      {routes.slice(0, 60).map((route) => <li key={route.id} className="rounded-xl border border-slate-200 bg-white p-4 hover:border-amber-400">
         <Link className="font-semibold text-slate-800 hover:text-amber-700" href={`/routes/${route.slug}`}>{route.from_city} to {route.to_city} Taxi <span aria-hidden="true">→</span></Link>
-        {route.distance_km ? <p className="mt-1 text-xs text-slate-500">Approx. route distance: {route.distance_km} km</p> : null}
       </li>)}
     </ul> : <p className="rounded-xl bg-white p-5 text-sm text-slate-500">{emptyText}</p>}
   </section>;
@@ -45,7 +44,7 @@ export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, 
   const popularSlugs = Array.isArray(content.popular_route_slugs) ? content.popular_route_slugs : [];
   const popularRoutes = popularSlugs.length
     ? popularSlugs.map((slug) => allRoutes.find((r) => r.slug === slug)).filter(Boolean).slice(0, 12)
-    : allRoutes.slice(0, 8);
+    : [];
   const faqs = Array.isArray(content.faqs) && content.faqs.length
     ? content.faqs.filter((f) => f && typeof f.q === 'string' && typeof f.a === 'string')
     : DEFAULT_FAQS;
@@ -90,8 +89,8 @@ export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, 
         <RouteLinks title={content.pickup_heading || `One Way Taxi Routes from ${cityName}`} intro={content.pickup_intro || `Explore destinations served by active one-way routes starting in ${cityName}. Each link opens the individual route page; fares are not displayed on this city overview.`} routes={outgoingRoutes} emptyText={`No active pickup routes from ${cityName} are currently listed.`} />
         <TextSection id="drop-information" title={content.drop_info_heading || `Booking a taxi to ${cityName}`} body={content.drop_info_body || `Arriving in ${cityName}? Browse the incoming route links below and open your origin-to-${cityName} route page. Confirm the exact drop location and arrival time with the booking team.`} />
         <RouteLinks title={content.drop_heading || `One Way Taxi Routes to ${cityName}`} intro={content.drop_intro || `Find active routes from other cities with ${cityName} as the destination. Use these internal links to explore the relevant route details.`} routes={incomingRoutes} emptyText={`No active drop routes to ${cityName} are currently listed.`} />
-        <section className="my-10"><div className="mb-5"><h2 className="text-2xl font-bold text-slate-900">{content.popular_heading || `Popular Taxi Routes from and to ${cityName}`}</h2>{content.popular_intro ? <p className="mt-2 max-w-3xl leading-7 text-slate-600">{content.popular_intro}</p> : <p className="mt-2 max-w-3xl leading-7 text-slate-600">Selected route pages travellers can explore from this city. This list contains route links only, not price claims.</p>}</div>
-          {popularRoutes.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{popularRoutes.map((r) => <li key={r.id} className="rounded-xl border border-amber-200 bg-amber-50 p-4"><Link href={`/routes/${r.slug}`} className="font-semibold text-slate-800 hover:text-amber-800">{r.from_city} to {r.to_city} Taxi →</Link></li>)}</ul> : <p className="rounded-xl bg-white p-5 text-slate-500">Popular routes will appear when matching active route records are available.</p>}
+        <section className="my-10"><div className="mb-5"><h2 className="text-2xl font-bold text-slate-900">{content.popular_heading || `Popular Taxi Routes from and to ${cityName}`}</h2>{content.popular_intro ? <p className="mt-2 max-w-3xl leading-7 text-slate-600">{content.popular_intro}</p> : <p className="mt-2 max-w-3xl leading-7 text-slate-600">Only routes selected and approved in the City SEO editor are shown here. These are curated internal links, not a booking-volume ranking.</p>}</div>
+          {popularRoutes.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{popularRoutes.map((r) => <li key={r.id} className="rounded-xl border border-amber-200 bg-amber-50 p-4"><Link href={`/routes/${r.slug}`} className="font-semibold text-slate-800 hover:text-amber-800">{r.from_city} to {r.to_city} Taxi →</Link></li>)}</ul> : <p className="rounded-xl bg-white p-5 text-slate-500">No popular routes have been selected for this city yet. Add verified route slugs in the City SEO editor to publish this section.</p>}
         </section>
         <TextSection id="booking-guidance" title={content.booking_heading || `How to book a one-way taxi in ${cityName}`} body={content.booking_body || `Contact Book One Way Taxi by call or WhatsApp. Share your pickup city, destination, exact pickup address, travel date, time and preferred vehicle. The booking team can then confirm route availability and the applicable fare before you proceed.`} />
         <section className="my-10 rounded-2xl border border-slate-200 bg-white p-6 md:p-8"><h2 className="text-2xl font-bold text-slate-900">{content.faq_heading || `Frequently Asked Questions – ${cityName} Taxi`}</h2><div className="mt-5 divide-y divide-slate-200">{faqs.map((faq, i) => <details key={i} className="py-4"><summary className="cursor-pointer font-semibold text-slate-900">{faq.q}</summary><p className="mt-3 whitespace-pre-line leading-7 text-slate-600">{faq.a}</p></details>)}</div></section>
