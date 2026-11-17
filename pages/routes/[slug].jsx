@@ -48,7 +48,7 @@ async function fetchCityRoutes(column, cityName) {
   const rows = [];
   for (let offset = 0; offset < 20000; offset += PAGE_SIZE) {
     const { data, error } = await supabase.from('routes')
-      .select('id,from_city,to_city,slug,distance_km,sedan_price,ertiga_price,carens_price,innova_crysta_price')
+      .select('id,from_city,to_city,slug,distance_km')
       .eq(column, cityName)
       .eq('is_active', true)
       .not('slug', 'is', null)
@@ -79,7 +79,7 @@ export async function getStaticProps({ params }) {
       if (cityName) {
         const [{ data: profile, error: profileError }, outgoingRoutes, incomingRoutes, { data: seo, error: seoError }] = await Promise.all([
           supabase.from('city_profiles')
-            .select('city_name,state,description,image_url')
+            .select('city_name,state,description,image_url,page_content')
             .eq('city_name', cityName)
             .eq('is_active', true)
             .maybeSingle(),
