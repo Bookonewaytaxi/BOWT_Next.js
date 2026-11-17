@@ -16,6 +16,7 @@ export default function CitySeoManager() {
   const [stateName, setStateName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [pageContent, setPageContent] = useState({});
   const [seoProfiles, setSeoProfiles] = useState({});
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
@@ -75,6 +76,8 @@ export default function CitySeoManager() {
     setStateName(activeProfile?.state || '');
     setDescription(activeProfile?.description || '');
     setImageUrl(activeProfile?.image_url || '');
+    const savedContent = activeProfile?.page_content || {};
+    setPageContent({ ...savedContent, popular_route_slugs_raw: Array.isArray(savedContent.popular_route_slugs) ? savedContent.popular_route_slugs.join(', ') : '', faqs_raw: JSON.stringify(savedContent.faqs || [], null, 2) });
     setSeoTitle(activeSeo?.meta_title || '');
     setSeoDescription(activeSeo?.meta_description || '');
     setSeoKeywords(Array.isArray(activeSeo?.keywords) ? activeSeo.keywords.join(', ') : '');
@@ -155,6 +158,7 @@ export default function CitySeoManager() {
         state: stateName.trim() || null,
         description: description.trim() || null,
         image_url: imageUrl.trim() || null,
+        page_content: { ...pageContent, popular_route_slugs: String(pageContent.popular_route_slugs_raw || '').split(',').map((v) => v.trim()).filter(Boolean), faqs: pageContent.faqs_raw ? JSON.parse(pageContent.faqs_raw) : [] },
         is_active: true,
         updated_at: new Date().toISOString()
       };
@@ -219,6 +223,28 @@ export default function CitySeoManager() {
               <label className="block text-sm text-slate-300">City image URL (optional)<Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
             </div>
             <label className="block text-sm text-slate-300">Unique city introduction (visible on the city page)<Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={9} placeholder={`Write verified, useful information about ${selected}: location context, relevant travel hubs, pickup planning and local route usefulness. Do not invent landmarks or service claims.`} className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
+            <div className="mt-6 border-t border-slate-800 pt-5">
+              <h4 className="mb-2 text-lg font-bold text-amber-300">Complete City Landing Page Editor</h4>
+              <p className="mb-4 text-xs leading-5 text-slate-400">Every field below controls the public city page. Leave a field blank to use its safe default. Route links are generated from real active route records; no route fares are shown here.</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                {[
+                  ['hero_eyebrow','Hero small heading',2],['hero_title','Main H1 heading',2],['hero_intro','Hero introduction',4],
+                  ['about_heading','About section heading',2],['about_body','About city / service content',6],
+                  ['pickup_info_heading','Pickup information heading',2],['pickup_info_body','Pickup from city content',5],
+                  ['pickup_heading','Pickup routes section heading',2],['pickup_intro','Pickup routes introduction',4],
+                  ['drop_info_heading','Drop information heading',2],['drop_info_body','Drop to city content',5],
+                  ['drop_heading','Drop routes section heading',2],['drop_intro','Drop routes introduction',4],
+                  ['popular_heading','Popular routes heading',2],['popular_intro','Popular routes introduction',4],
+                  ['booking_heading','Booking guidance heading',2],['booking_body','Booking guidance content',5],
+                  ['faq_heading','FAQ section heading',2],['cta_heading','Bottom CTA heading',2],['cta_body','Bottom CTA content',3],
+                  ['image_alt','City image alt text',2]
+                ].map(([key,label,rows]) => <label key={key} className="block text-sm text-slate-300">{label}<Textarea rows={rows} value={pageContent[key] || ''} onChange={(e) => setPageContent((v) => ({...v,[key]:e.target.value}))} className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>)}
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="block text-sm text-slate-300">Popular route slugs (comma separated, optional; leave blank for automatic suggestions)<Textarea rows={4} value={pageContent.popular_route_slugs_raw || ''} onChange={(e) => setPageContent((v) => ({...v,popular_route_slugs_raw:e.target.value}))} placeholder="ahmedabad-to-mumbai, ahmedabad-to-surat" className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
+                <label className="block text-sm text-slate-300">FAQs as JSON array — each item needs q and a fields<Textarea rows={8} value={pageContent.faqs_raw || '[]'} onChange={(e) => setPageContent((v) => ({...v,faqs_raw:e.target.value}))} placeholder='[{"q":"Question?","a":"Answer."}]' className="mt-2 font-mono text-xs bg-slate-950 border-slate-700 text-white" /></label>
+              </div>
+            </div>
             <div className="mt-5 border-t border-slate-800 pt-5"><h4 className="mb-3 text-sm font-bold text-amber-300">Search Engine Metadata</h4>
               <label className="mb-3 block text-sm text-slate-300">SEO Title <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={70} placeholder={`${selected} Taxi Service | One Way Taxi`} className="mt-2 bg-slate-950 border-slate-700 text-white" /><span className="text-xs text-slate-500">{seoTitle.length}/60 recommended</span></label>
               <label className="mb-3 block text-sm text-slate-300">Meta Description <Textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} rows={3} maxLength={180} placeholder={`Write a unique search description for ${selected} taxi service.`} className="mt-2 bg-slate-950 border-slate-700 text-white" /><span className="text-xs text-slate-500">{seoDescription.length}/160 recommended</span></label>
