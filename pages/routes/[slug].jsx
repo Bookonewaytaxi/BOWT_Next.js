@@ -48,7 +48,7 @@ async function fetchCityRoutes(column, cityName) {
   const rows = [];
   for (let offset = 0; offset < 20000; offset += PAGE_SIZE) {
     const { data, error } = await supabase.from('routes')
-      .select('id,from_city,to_city,slug,distance_km')
+      .select('id,from_city,to_city,slug')
       .eq(column, cityName)
       .eq('is_active', true)
       .not('slug', 'is', null)
