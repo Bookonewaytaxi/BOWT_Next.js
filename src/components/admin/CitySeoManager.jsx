@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { RefreshCw, Save, Search, MapPin, CheckCircle2, Sparkles } from 'lucide-react';
+import { RefreshCw, Save, Search, MapPin, CheckCircle2, Sparkles, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,7 +77,7 @@ export default function CitySeoManager() {
     setDescription(activeProfile?.description || '');
     setImageUrl(activeProfile?.image_url || '');
     const savedContent = activeProfile?.page_content || {};
-    setPageContent({ ...savedContent, popular_route_slugs_raw: Array.isArray(savedContent.popular_route_slugs) ? savedContent.popular_route_slugs.join(', ') : '', faqs_raw: JSON.stringify(savedContent.faqs || [], null, 2) });
+    setPageContent({ ...savedContent, popular_route_slugs_raw: Array.isArray(savedContent.popular_route_slugs) ? savedContent.popular_route_slugs.join(', ') : '', faqs: Array.isArray(savedContent.faqs) ? savedContent.faqs : [] });
     setSeoTitle(activeSeo?.meta_title || '');
     setSeoDescription(activeSeo?.meta_description || '');
     setSeoKeywords(Array.isArray(activeSeo?.keywords) ? activeSeo.keywords.join(', ') : '');
@@ -158,7 +158,7 @@ export default function CitySeoManager() {
         state: stateName.trim() || null,
         description: description.trim() || null,
         image_url: imageUrl.trim() || null,
-        page_content: { ...pageContent, popular_route_slugs: String(pageContent.popular_route_slugs_raw || '').split(',').map((v) => v.trim()).filter(Boolean), faqs: pageContent.faqs_raw ? JSON.parse(pageContent.faqs_raw) : [] },
+        page_content: { ...pageContent, popular_route_slugs: String(pageContent.popular_route_slugs_raw || '').split(',').map((v) => v.trim()).filter(Boolean), faqs: Array.isArray(pageContent.faqs) ? pageContent.faqs.filter((faq) => faq.q?.trim() && faq.a?.trim()) : [] },
         is_active: true,
         updated_at: new Date().toISOString()
       };
@@ -242,7 +242,7 @@ export default function CitySeoManager() {
               </div>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="block text-sm text-slate-300">Popular route slugs (comma separated, optional; leave blank for automatic suggestions)<Textarea rows={4} value={pageContent.popular_route_slugs_raw || ''} onChange={(e) => setPageContent((v) => ({...v,popular_route_slugs_raw:e.target.value}))} placeholder="ahmedabad-to-mumbai, ahmedabad-to-surat" className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
-                <label className="block text-sm text-slate-300">FAQs as JSON array — each item needs q and a fields<Textarea rows={8} value={pageContent.faqs_raw || '[]'} onChange={(e) => setPageContent((v) => ({...v,faqs_raw:e.target.value}))} placeholder='[{"q":"Question?","a":"Answer."}]' className="mt-2 font-mono text-xs bg-slate-950 border-slate-700 text-white" /></label>
+                <div className="block text-sm text-slate-300"><div className="mb-2 flex items-center justify-between"><span>Frequently Asked Questions</span><Button type="button" variant="outline" size="sm" onClick={() => setPageContent((v) => ({...v,faqs:[...(v.faqs || []),{q:'',a:''}]}))} className="border-slate-700 text-slate-200"><Plus className="mr-1 h-3 w-3" /> Add FAQ</Button></div><div className="space-y-3">{(pageContent.faqs || []).map((faq,index) => <div key={index} className="rounded-lg border border-slate-700 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-xs text-slate-500">FAQ {index+1}</span><Button type="button" variant="ghost" size="sm" onClick={() => setPageContent((v) => ({...v,faqs:(v.faqs || []).filter((_,i) => i!==index)}))} className="text-rose-300 hover:text-rose-200"><Trash2 className="h-3 w-3 mr-1" /> Remove</Button></div><Input value={faq.q || ''} onChange={(e) => setPageContent((v) => ({...v,faqs:(v.faqs || []).map((item,i) => i===index ? {...item,q:e.target.value} : item)}))} placeholder="Question" className="mb-2 bg-slate-950 border-slate-700 text-white" /><Textarea rows={3} value={faq.a || ''} onChange={(e) => setPageContent((v) => ({...v,faqs:(v.faqs || []).map((item,i) => i===index ? {...item,a:e.target.value} : item)}))} placeholder="Answer" className="bg-slate-950 border-slate-700 text-white" /></div>)}</div></div>
               </div>
             </div>
             <div className="mt-5 border-t border-slate-800 pt-5"><h4 className="mb-3 text-sm font-bold text-amber-300">Search Engine Metadata</h4>
