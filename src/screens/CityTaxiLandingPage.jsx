@@ -7,41 +7,48 @@ import WhatsAppButton from '@/components/common/WhatsAppButton';
 import Breadcrumb from '@/components/common/Breadcrumb';
 
 const SITE_URL = 'https://www.bookonewaytaxi.in';
-const phone = '+91 75675 75578';
-const money = (value) => Number(value) > 0 ? '₹' + Number(value).toLocaleString('en-IN') : 'On Request';
+const PHONE = '+91 75675 75578';
+const DEFAULT_FAQS = [
+  { q: 'Can I book a one-way taxi from this city?', a: 'Yes. Choose a destination from the pickup routes listed on this page and open the route page to review its details and booking options.' },
+  { q: 'Can I book a taxi to this city?', a: 'Yes. Use the incoming routes section to find services from other cities to this destination.' },
+  { q: 'How can I check vehicle availability and fare?', a: 'Open the individual route page or contact our booking team. Route availability and fares are confirmed for the selected journey.' },
+  { q: 'How do I book?', a: 'Call or WhatsApp our booking team with your pickup, destination, travel date and preferred vehicle.' }
+];
 
-function RouteCard({ route }) {
-  const prices = [
-    ['Sedan (4+1)', route.sedan_price],
-    ['SUV (6+1) Ertiga', route.ertiga_price],
-    ['SUV (7+1) Carens', route.carens_price],
-    ['Innova Crysta', route.innova_crysta_price],
-  ].filter(([, price]) => Number(price) > 0);
-  return <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h3 className="text-lg font-bold text-slate-900">
-      <Link className="hover:text-amber-600" href={`/routes/${route.slug}`}>{route.from_city} to {route.to_city} Taxi</Link>
-    </h3>
-    <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-600">
-      {route.distance_km ? <span>Distance: {route.distance_km} km</span> : null}
-      <span>One-way fixed route fare</span>
-    </div>
-    {prices.length > 0 && <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-      {prices.map(([label, price]) => <div key={label} className="rounded-lg bg-slate-50 p-3">
-        <div className="text-xs text-slate-500">{label}</div><div className="mt-1 font-bold text-slate-900">{money(price)}</div>
-      </div>)}
-    </div>}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-      <span className="text-xs text-slate-500">Toll, permit, border tax and driver allowance included; parking extra.</span>
-      <Link href={`/routes/${route.slug}`} className="font-semibold text-amber-700 hover:underline">View route details →</Link>
-    </div>
-  </article>;
+function TextSection({ title, body, id }) {
+  if (!body) return null;
+  return <section id={id} className="my-10 rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+    <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+    <div className="mt-4 whitespace-pre-line leading-8 text-slate-600">{body}</div>
+  </section>;
 }
 
-export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, outgoingRoutes, incomingRoutes }) {
+function RouteLinks({ title, intro, routes, emptyText }) {
+  return <section className="my-10" aria-label={title}>
+    <div className="mb-5"><h2 className="text-2xl font-bold text-slate-900">{title}</h2>{intro ? <p className="mt-2 max-w-3xl leading-7 text-slate-600">{intro}</p> : null}</div>
+    {routes.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {routes.map((route) => <li key={route.id} className="rounded-xl border border-slate-200 bg-white p-4 hover:border-amber-400">
+        <Link className="font-semibold text-slate-800 hover:text-amber-700" href={`/routes/${route.slug}`}>{route.from_city} to {route.to_city} Taxi <span aria-hidden="true">→</span></Link>
+        {route.distance_km ? <p className="mt-1 text-xs text-slate-500">Approx. route distance: {route.distance_km} km</p> : null}
+      </li>)}
+    </ul> : <p className="rounded-xl bg-white p-5 text-sm text-slate-500">{emptyText}</p>}
+  </section>;
+}
+
+export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, outgoingRoutes = [], incomingRoutes = [] }) {
+  const content = profile?.page_content || {};
   const canonical = `${SITE_URL}/routes/${citySlug}-taxi-service`;
   const title = (seo?.meta_title || `${cityName} Taxi Service | One Way Cab Booking | Book One Way Taxi`).slice(0, 60);
-  const description = (seo?.meta_description || `Book a one way taxi from or to ${cityName}. Compare fixed route fares for Sedan, Ertiga, Carens and Innova Crysta. Toll, permit and driver allowance included; parking extra. Call ${phone}.`).slice(0, 160);
+  const description = (seo?.meta_description || `Book a one-way taxi from or to ${cityName}. Explore pickup and drop routes, travel information and booking support with Book One Way Taxi. Call ${PHONE}.`).slice(0, 160);
+  const keywords = Array.isArray(seo?.keywords) ? seo.keywords.join(', ') : '';
   const allRoutes = [...outgoingRoutes, ...incomingRoutes.filter((r) => !outgoingRoutes.some((o) => o.id === r.id))];
+  const popularSlugs = Array.isArray(content.popular_route_slugs) ? content.popular_route_slugs : [];
+  const popularRoutes = popularSlugs.length
+    ? popularSlugs.map((slug) => allRoutes.find((r) => r.slug === slug)).filter(Boolean).slice(0, 12)
+    : allRoutes.slice(0, 8);
+  const faqs = Array.isArray(content.faqs) && content.faqs.length
+    ? content.faqs.filter((f) => f && typeof f.q === 'string' && typeof f.a === 'string')
+    : DEFAULT_FAQS;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
@@ -49,45 +56,46 @@ export default function CityTaxiLandingPage({ cityName, citySlug, profile, seo, 
     description,
     url: canonical,
     about: { '@type': 'City', name: cityName, ...(profile?.state ? { containedInPlace: { '@type': 'State', name: profile.state } } : {}) },
-    mainEntity: { '@type': 'ItemList', numberOfItems: allRoutes.length, itemListElement: allRoutes.slice(0, 100).map((r, i) => ({ '@type': 'ListItem', position: i + 1, name: `${r.from_city} to ${r.to_city} Taxi`, url: `${SITE_URL}/routes/${r.slug}` })) }
+    mainEntity: [
+      { '@type': 'ItemList', name: content.pickup_heading || `Taxi routes from ${cityName}`, numberOfItems: outgoingRoutes.length, itemListElement: outgoingRoutes.slice(0, 100).map((r, i) => ({ '@type': 'ListItem', position: i + 1, name: `${r.from_city} to ${r.to_city} Taxi`, url: `${SITE_URL}/routes/${r.slug}` })) },
+      { '@type': 'ItemList', name: content.drop_heading || `Taxi routes to ${cityName}`, numberOfItems: incomingRoutes.length, itemListElement: incomingRoutes.slice(0, 100).map((r, i) => ({ '@type': 'ListItem', position: i + 1, name: `${r.from_city} to ${r.to_city} Taxi`, url: `${SITE_URL}/routes/${r.slug}` })) },
+      { '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }
+    ]
   };
-  const faqs = [
-    { q: `Can I book a one way taxi from ${cityName}?`, a: `Yes. Select an available route from ${cityName}, compare the vehicle fares shown on that route page and submit your booking request.` },
-    { q: `Can I book a taxi to ${cityName}?`, a: `Yes. Browse the routes arriving in ${cityName}. Each route opens its own page with route-specific details and available fares.` },
-    { q: 'What is included in the one-way taxi fare?', a: 'Toll, permit, border tax and driver allowance are included in the stated route fare. Parking charges are extra.' },
-    { q: 'Which vehicles can I choose?', a: 'Available route fares may include Sedan (4+1), SUV (6+1) Ertiga, SUV (7+1) Carens and Innova Crysta. The route page shows the vehicles and prices recorded for that route.' },
-    { q: 'How do I confirm the exact fare and availability?', a: 'Open the required route page and review its current vehicle fares before booking, or call +91 75675 75578 for assistance.' }
-  ];
   return <>
     <Head>
-      <title>{title}</title><meta name="description" content={description} /><meta name="robots" content={allRoutes.length ? 'index,follow' : 'noindex,follow'} />
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      {keywords ? <meta name="keywords" content={keywords} /> : null}
+      <meta name="robots" content={allRoutes.length ? 'index,follow,max-image-preview:large' : 'noindex,follow'} />
       <link rel="canonical" href={canonical} />
       <meta property="og:type" content="website" /><meta property="og:site_name" content="Book One Way Taxi" /><meta property="og:title" content={title} /><meta property="og:description" content={description} /><meta property="og:url" content={canonical} />
+      {profile?.image_url ? <meta property="og:image" content={profile.image_url} /> : null}
       <meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content={title} /><meta name="twitter:description" content={description} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, '\\u003c') }} />
     </Head>
     <div className="min-h-screen bg-slate-50 text-slate-800"><Header />
       <main className="container mx-auto px-4 pb-16 pt-28">
         <Breadcrumb items={[{ label: 'Routes', href: '/routes' }, { label: `${cityName} Taxi Service` }]} />
         <section className="mt-6 overflow-hidden rounded-2xl bg-slate-950 px-6 py-12 text-white md:px-10">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-amber-400">Book One Way Taxi · City Service</p>
-          <h1 className="max-w-4xl text-3xl font-black leading-tight md:text-5xl">{cityName} Taxi Service – One Way Cab Booking</h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">Find one-way taxi routes from {cityName} and taxis arriving in {cityName}. Compare route-specific fixed fares and open each route for complete vehicle, distance and booking details.</p>
-          <div className="mt-7 flex flex-wrap gap-3"><a href="tel:+917567575578" className="rounded-lg bg-amber-400 px-5 py-3 font-bold text-slate-950">Call {phone}</a><a href="https://wa.me/917567575578" className="rounded-lg border border-white/30 px-5 py-3 font-semibold text-white">WhatsApp Booking</a></div>
-          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4"><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">{outgoingRoutes.length}</b><span className="text-sm text-slate-300">Routes from {cityName}</span></div><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">{incomingRoutes.length}</b><span className="text-sm text-slate-300">Routes to {cityName}</span></div><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">4</b><span className="text-sm text-slate-300">Vehicle categories</span></div><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">One Way</b><span className="text-sm text-slate-300">Fixed route fares</span></div></div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-amber-400">{content.hero_eyebrow || 'Book One Way Taxi · City Travel'}</p>
+          <h1 className="max-w-4xl text-3xl font-black leading-tight md:text-5xl">{content.hero_title || `${cityName} Taxi Service – One Way Cab Booking`}</h1>
+          <p className="mt-5 max-w-3xl whitespace-pre-line text-lg leading-8 text-slate-300">{content.hero_intro || `Plan an outstation one-way journey from ${cityName} or arrange a taxi to ${cityName}. Explore route links, travel information and booking support from Book One Way Taxi.`}</p>
+          <div className="mt-7 flex flex-wrap gap-3"><a href="tel:+917567575578" className="rounded-lg bg-amber-400 px-5 py-3 font-bold text-slate-950">Call {PHONE}</a><a href="https://wa.me/917567575578" className="rounded-lg border border-white/30 px-5 py-3 font-semibold text-white">WhatsApp Booking</a></div>
+          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3"><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">{outgoingRoutes.length}</b><span className="text-sm text-slate-300">Pickup routes</span></div><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">{incomingRoutes.length}</b><span className="text-sm text-slate-300">Drop routes</span></div><div className="rounded-lg bg-white/10 p-4"><b className="block text-2xl">One Way</b><span className="text-sm text-slate-300">Outstation taxi service</span></div></div>
         </section>
-        <section className="my-10 grid gap-6 md:grid-cols-[1fr_300px]">
-          <article className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-2xl font-bold text-slate-900">About {cityName}</h2>
-            {profile?.image_url ? <img src={profile.image_url} alt={`${cityName} city`} className="mt-4 max-h-72 w-full rounded-xl object-cover" loading="lazy" /> : null}
-            {profile?.description ? <div className="mt-4 whitespace-pre-line leading-7 text-slate-600">{profile.description}</div> : <p className="mt-4 leading-7 text-slate-600">Explore active one-way taxi connections where {cityName} is the pickup or destination city. Select a route below to see its recorded distance, vehicle-wise fixed fares and booking details. {profile?.state ? `${cityName} is in ${profile.state}.` : ''}</p>}
-          </article>
-          <aside className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-lg font-bold text-slate-900">Fare information</h2><p className="mt-3 text-sm leading-6 text-slate-600">Route fares are stored individually. The route detail page shows the exact fare for each available vehicle. Toll, permit, border tax and driver allowance are included; parking is extra.</p><p className="mt-4 text-sm font-semibold text-slate-800">Need help?</p><a className="mt-1 block font-bold text-amber-700" href="tel:+917567575578">{phone}</a></aside>
+        {profile?.image_url ? <img src={profile.image_url} alt={content.image_alt || `${cityName} city and taxi travel`} className="mt-8 max-h-96 w-full rounded-2xl object-cover" loading="lazy" /> : null}
+        <TextSection id="about" title={content.about_heading || `About taxi services in ${cityName}`} body={content.about_body || profile?.description || `Book One Way Taxi helps travellers explore one-way outstation taxi connections from and to ${cityName}. Select a route below to open its dedicated page for journey details and booking assistance.`} />
+        <TextSection id="pickup-information" title={content.pickup_info_heading || `Planning a taxi pickup from ${cityName}`} body={content.pickup_info_body || `For a pickup from ${cityName}, choose your destination from the routes listed below. Share your travel date, pickup point, passenger count and preferred vehicle when enquiring so the booking team can confirm availability.`} />
+        <RouteLinks title={content.pickup_heading || `One Way Taxi Routes from ${cityName}`} intro={content.pickup_intro || `Explore destinations served by active one-way routes starting in ${cityName}. Each link opens the individual route page; fares are not displayed on this city overview.`} routes={outgoingRoutes} emptyText={`No active pickup routes from ${cityName} are currently listed.`} />
+        <TextSection id="drop-information" title={content.drop_info_heading || `Booking a taxi to ${cityName}`} body={content.drop_info_body || `Arriving in ${cityName}? Browse the incoming route links below and open your origin-to-${cityName} route page. Confirm the exact drop location and arrival time with the booking team.`} />
+        <RouteLinks title={content.drop_heading || `One Way Taxi Routes to ${cityName}`} intro={content.drop_intro || `Find active routes from other cities with ${cityName} as the destination. Use these internal links to explore the relevant route details.`} routes={incomingRoutes} emptyText={`No active drop routes to ${cityName} are currently listed.`} />
+        <section className="my-10"><div className="mb-5"><h2 className="text-2xl font-bold text-slate-900">{content.popular_heading || `Popular Taxi Routes from and to ${cityName}`}</h2>{content.popular_intro ? <p className="mt-2 max-w-3xl leading-7 text-slate-600">{content.popular_intro}</p> : <p className="mt-2 max-w-3xl leading-7 text-slate-600">Selected route pages travellers can explore from this city. This list contains route links only, not price claims.</p>}</div>
+          {popularRoutes.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{popularRoutes.map((r) => <li key={r.id} className="rounded-xl border border-amber-200 bg-amber-50 p-4"><Link href={`/routes/${r.slug}`} className="font-semibold text-slate-800 hover:text-amber-800">{r.from_city} to {r.to_city} Taxi →</Link></li>)}</ul> : <p className="rounded-xl bg-white p-5 text-slate-500">Popular routes will appear when matching active route records are available.</p>}
         </section>
-        <section className="my-12"><div className="mb-6"><h2 className="text-2xl font-bold text-slate-900">One Way Taxi Routes from {cityName}</h2><p className="mt-2 text-slate-600">Compare available destinations and route-wise vehicle fares.</p></div>{outgoingRoutes.length ? <div className="grid gap-4">{outgoingRoutes.map((route) => <RouteCard key={route.id} route={route} />)}</div> : <p className="rounded-xl bg-white p-6 text-slate-600">No active outgoing routes are currently listed.</p>}</section>
-        <section className="my-12"><div className="mb-6"><h2 className="text-2xl font-bold text-slate-900">One Way Taxi Routes to {cityName}</h2><p className="mt-2 text-slate-600">Find routes arriving in {cityName} from other cities.</p></div>{incomingRoutes.length ? <div className="grid gap-4">{incomingRoutes.map((route) => <RouteCard key={route.id} route={route} />)}</div> : <p className="rounded-xl bg-white p-6 text-slate-600">No active incoming routes are currently listed.</p>}</section>
-        <section className="my-12 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:p-8"><h2 className="text-2xl font-bold text-slate-900">Frequently Asked Questions about {cityName} Taxi Service</h2><div className="mt-5 divide-y divide-slate-200">{faqs.map((faq) => <details key={faq.q} className="py-4"><summary className="cursor-pointer font-semibold text-slate-900">{faq.q}</summary><p className="mt-3 leading-7 text-slate-600">{faq.a}</p></details>)}</div></section>
-        <section className="rounded-2xl bg-slate-900 p-8 text-center text-white"><h2 className="text-2xl font-bold">Book Your One Way Taxi from or to {cityName}</h2><p className="mx-auto mt-3 max-w-2xl text-slate-300">Choose a route above to check its vehicle-wise fare and complete route information.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><a href="tel:+917567575578" className="rounded-lg bg-amber-400 px-5 py-3 font-bold text-slate-950">Call Now</a><a href="https://wa.me/917567575578" className="rounded-lg border border-white/30 px-5 py-3 font-semibold">WhatsApp Us</a></div></section>
+        <TextSection id="booking-guidance" title={content.booking_heading || `How to book a one-way taxi in ${cityName}`} body={content.booking_body || `Contact Book One Way Taxi by call or WhatsApp. Share your pickup city, destination, exact pickup address, travel date, time and preferred vehicle. The booking team can then confirm route availability and the applicable fare before you proceed.`} />
+        <section className="my-10 rounded-2xl border border-slate-200 bg-white p-6 md:p-8"><h2 className="text-2xl font-bold text-slate-900">{content.faq_heading || `Frequently Asked Questions – ${cityName} Taxi`}</h2><div className="mt-5 divide-y divide-slate-200">{faqs.map((faq, i) => <details key={i} className="py-4"><summary className="cursor-pointer font-semibold text-slate-900">{faq.q}</summary><p className="mt-3 whitespace-pre-line leading-7 text-slate-600">{faq.a}</p></details>)}</div></section>
+        <section className="rounded-2xl bg-slate-900 p-8 text-center text-white"><h2 className="text-2xl font-bold">{content.cta_heading || `Need a One Way Taxi from or to ${cityName}?`}</h2><p className="mx-auto mt-3 max-w-2xl whitespace-pre-line text-slate-300">{content.cta_body || 'Contact our team with your journey details to check availability and get booking assistance.'}</p><div className="mt-6 flex flex-wrap justify-center gap-3"><a href="tel:+917567575578" className="rounded-lg bg-amber-400 px-5 py-3 font-bold text-slate-950">Call Now</a><a href="https://wa.me/917567575578" className="rounded-lg border border-white/30 px-5 py-3 font-semibold">WhatsApp Us</a></div></section>
       </main><Footer /><WhatsAppButton /></div>
   </>;
 }
