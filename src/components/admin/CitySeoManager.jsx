@@ -46,7 +46,7 @@ export default function CitySeoManager() {
       const profileMap = {};
       for (let offset = 0; offset < names.length; offset += CHUNK) {
         const batch = names.slice(offset, offset + CHUNK);
-        const { data, error } = await supabase.from('city_profiles').select('id,city_name,slug,state,description,image_url,is_active').in('city_name', batch);
+        const { data, error } = await supabase.from('city_profiles').select('id,city_name,slug,state,description,image_url,page_content,is_active').in('city_name', batch);
         if (error) throw error;
         (data || []).forEach((profile) => { profileMap[profile.city_name.toLowerCase()] = profile; });
       }
