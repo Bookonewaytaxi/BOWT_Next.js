@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { RefreshCw, Save, Search, MapPin, CheckCircle2, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { RefreshCw, Save, Search, MapPin, CheckCircle2, Sparkles, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -217,7 +217,21 @@ export default function CitySeoManager() {
         </aside>
         <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
           {!selected ? <p className="text-slate-400">Select a city to manage its content.</p> : <>
-            <div className="flex items-center justify-between mb-5"><div><h3 className="text-xl font-bold text-white">{selected}</h3><p className="text-xs text-slate-500">Canonical page: /routes/{slugifyCity(selected)}-taxi-service</p></div><span className="text-xs text-slate-400">{activeProfile ? 'Profile exists' : 'Profile not created'}</span></div>
+            <div className="mb-5">
+              <div className="mb-3 flex items-center justify-between"><h3 className="text-xl font-bold text-white">{selected}</h3><span className="text-xs text-slate-400">{activeProfile ? 'Profile exists' : 'Profile not created'}</span></div>
+              <div className="grid gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4 md:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-300">Page Slug
+                  <Input readOnly value={`${activeProfile?.slug || slugifyCity(selected)}-taxi-service`} className="mt-2 border-slate-700 bg-slate-900 font-mono text-amber-300" />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Complete Public Page URL
+                  <Input readOnly value={`https://www.bookonewaytaxi.in/routes/${activeProfile?.slug || slugifyCity(selected)}-taxi-service`} className="mt-2 border-slate-700 bg-slate-900 font-mono text-amber-300" />
+                </label>
+                <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-slate-500">This is the live page address and the canonical URL used for this city page.</p>
+                  <a href={`https://www.bookonewaytaxi.in/routes/${activeProfile?.slug || slugifyCity(selected)}-taxi-service`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400">Open public page <ExternalLink className="ml-2 h-4 w-4" /></a>
+                </div>
+              </div>
+            </div>
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <label className="block text-sm text-slate-300">State / Region<Input value={stateName} onChange={(e) => setStateName(e.target.value)} placeholder="e.g. Gujarat" className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
               <label className="block text-sm text-slate-300">City image URL (optional)<Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="mt-2 bg-slate-950 border-slate-700 text-white" /></label>
